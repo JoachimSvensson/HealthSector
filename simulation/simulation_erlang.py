@@ -34,31 +34,58 @@ def compute_staffing_levels(demand, aht, interval, asa, shrinkage, service_level
     return staffing_levels
 
 
-def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, month:str, observed_kpi: str):
+def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, month:str, observed_kpi: str, aggregation_level: str = 'year'):
     
     if month == 'All':
         staffing_levels = staffing_levels
     else:
         staffing_levels = staffing_levels[staffing_levels['Month'] == month]
-    staffing_levels.drop('Month',axis=1, inplace=True)
 
 
-    # Create average week
-    staffing_levels = staffing_levels.groupby(staffing_levels.index.dayofweek).mean().round().reset_index(drop =False, names = ["Day", "Hour", "Minute"])
-    days = ["Monday ", "Tuesday ", "Wednesday ", "Thursday " , "Friday ", "Saturday ", "Sunday "]
-    staffing_levels["Day"] = staffing_levels["Day"].apply(lambda x: days[x])
+    if aggregation_level != 'year':
+        staffing_levels = staffing_levels[staffing_levels.columns.tolist()[:-1]]
+        # Create average week
+        staffing_levels = staffing_levels.groupby(staffing_levels.index.dayofweek).mean().round().reset_index(drop =False, names = ["Day", "Hour", "Minute"])
+        days = ["Monday ", "Tuesday ", "Wednesday ", "Thursday " , "Friday ", "Saturday ", "Sunday "]
+        staffing_levels["Day"] = staffing_levels["Day"].apply(lambda x: days[x])
 
-    # Plotting
-    plt.figure(figsize=(10, 6))  # Adjust the figure size as needed
+        # Plotting
+        plt.figure(figsize=(20, 12))  # Adjust the figure size as needed
 
-    # Plot the time series
-    plt.plot(staffing_levels['Day'], staffing_levels[observed_kpi], label=observed_kpi)
+        # Plot the time series
+        plt.plot(staffing_levels['Day'], staffing_levels[observed_kpi], label=observed_kpi)
 
-    # Set labels and title
-    plt.xlabel('Average Week')
-    plt.ylabel(observed_kpi)
-    plt.title(f'Time Series Plot of {observed_kpi}')
-    plt.ylim(0, staffing_levels[observed_kpi].max() + 5)
-    plt.legend()
-    plt.show()
+        # Set labels and title
+        plt.xlabel('Average Week')
+        plt.ylabel(observed_kpi)
+        plt.title(f'Time Series Plot of {observed_kpi}')
+        plt.ylim(0, staffing_levels[observed_kpi].max() + 1)
+        plt.legend()
+        plt.show()
+        
+    else:
 
+        plt.figure(figsize=(30, 18))
+
+        # Assuming you have lists of days and corresponding values
+        days = [str(date) for date in staffing_levels.index]
+        handling_times = [0.5,3,7,24,72]
+        for i in handling_times:
+            values = staffing_levels[f'{observed_kpi} ({i})']  # Corresponding values
+            # Assuming you have a list of months (e.g., "Jan", "Feb", etc.)
+            months = staffing_levels['Month (72)']  # List of months corresponding to each day
+            # Plotting
+            color = plt.cm.viridis((i%13 * 20))
+            plt.plot(np.arange(len(days)), values, label = f'{observed_kpi} ({i})', color=color)
+
+        plt.xlabel('Days & Months of Year')
+        plt.ylabel(f'{observed_kpi}')
+        plt.title(f'Time Series Plot of {observed_kpi}')
+        month_ticks = [days.index(day) for day in days if day[8:10] == '01']  # Index of the first day of each month
+        month_labels = [months[days.index(day)] for day in days if day[8:10] == '01']  # Corresponding month labels
+
+        plt.xticks(month_ticks, month_labels, rotation=45)  # Setting ticks and labels to show each month
+        legend = plt.legend()
+        for line, text in zip(legend.get_lines(), legend.get_texts()):
+            text.set_color(line.get_color())
+        plt.show()
