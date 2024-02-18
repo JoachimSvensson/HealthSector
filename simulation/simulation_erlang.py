@@ -34,12 +34,12 @@ def compute_staffing_levels(demand, aht, interval, asa, shrinkage, service_level
     return staffing_levels
 
 
-def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, month:str, observed_kpi: str, aggregation_level: str = 'year'):
+def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, month:str, observed_kpi: str, handling_times: list, aggregation_level: str = 'year'):
     
     if month == 'All':
         staffing_levels = staffing_levels
     else:
-        staffing_levels = staffing_levels[staffing_levels['Month'] == month]
+        staffing_levels = staffing_levels[staffing_levels['Month (72)'] == month]
 
 
     if aggregation_level != 'year':
@@ -69,7 +69,7 @@ def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, mont
 
         # Assuming you have lists of days and corresponding values
         days = [str(date) for date in staffing_levels.index]
-        handling_times = [0.5,3,7,24,72]
+        handling_times = handling_times
         for i in handling_times:
             values = staffing_levels[f'{observed_kpi} ({i})']  # Corresponding values
             # Assuming you have a list of months (e.g., "Jan", "Feb", etc.)
