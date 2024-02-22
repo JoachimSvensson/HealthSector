@@ -82,9 +82,14 @@ def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, mont
         plt.ylabel(f'{observed_kpi}')
         plt.title(f'Time Series Plot of {observed_kpi}')
         month_ticks = [days.index(day) for day in days if day[8:10] == '01']  # Index of the first day of each month
+        month_ticks = month_ticks[0::3]
         month_labels = [months[days.index(day)] for day in days if day[8:10] == '01']  # Corresponding month labels
-
-        plt.xticks(month_ticks, month_labels, rotation=45)  # Setting ticks and labels to show each month
+        month_labels_plot = []
+        for month in month_labels:
+            if month not in month_labels_plot:
+                month_labels_plot.append(month)
+        
+        plt.xticks(month_ticks, month_labels_plot, rotation=45)  # Setting ticks and labels to show each month
         legend = plt.legend()
         for line, text in zip(legend.get_lines(), legend.get_texts()):
             text.set_color(line.get_color())
