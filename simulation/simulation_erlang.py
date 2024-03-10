@@ -94,3 +94,26 @@ def create_staffing_levels_average_week_plot(staffing_levels: pd.DataFrame, mont
         for line, text in zip(legend.get_lines(), legend.get_texts()):
             text.set_color(line.get_color())
         plt.show()
+
+
+def assign_group_number(index):
+    return index // 16 + 1
+
+
+def update_values(row):
+    if row['demand'] == 0:
+        row['day'] = 2
+        row['demand'] = 1
+    return row
+
+def reverse_engineer_values(row):
+    if row['day'] == 2:
+        row.iloc[:-3] = 0
+    return row
+
+
+def simulate_length_of_stay(num_patients, length_of_stay_prob):
+    stay_durations = np.random.choice(list(length_of_stay_prob.keys()), 
+                                       size=num_patients, 
+                                       p=list(length_of_stay_prob.values()))
+    return stay_durations
