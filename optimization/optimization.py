@@ -4,7 +4,9 @@ from pyomo.opt import TerminationCondition
 import time 
 import pandas as pd 
 import numpy as np
+import matplotlib.pyplot as plt
 
+#################### Optimeringsmodell ####################
 def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
                      , patients_staff:int, availability:int, ServiceLevel:float):
     
@@ -74,6 +76,7 @@ def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
     return model
 
 
+#################### Optimeringsalgoritme ####################
 def optimize_staffing(model):
     opt = SolverFactory('glpk')
     status = opt.solve(model, tee=True)
@@ -90,3 +93,16 @@ def optimize_staffing(model):
     staff_allocated = [pyo.value(model.Staff_Allocated[s]) for s in model.setShift]
 
     return model, status, obj, staff_allocated
+
+
+#################### Plot av Optimal bemanning ####################
+def staff_opt_plot(staff_allocated: list):
+    # Plot staffing requirements
+    plt.figure(figsize=(10, 6))
+    plt.plot(staff_allocated, marker='o', color='g', linestyle='-')
+    plt.title('Staffing Requirements for Post at Hammerfest')
+    plt.xlabel('Day')
+    plt.ylabel('Number of Staff Required')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
