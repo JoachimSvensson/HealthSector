@@ -5,7 +5,32 @@ import matplotlib.pyplot as plt
 
 
 ######################## Monte Carlo Functions ########################
-def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: int, num_simulations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024):
+def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: int, num_simulations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, scenario: str = None):
+    '''
+    Function to perform monte carlo simulations to simulate the demand side.
+
+    params:
+            data: Expected value pandas dataframe. Full dataset to be filtered
+            
+            total_beds: Expected value integer. The total number of beds at the hospitaal dept. post. 
+            
+            average_stay: Expected value integer. The average stay (in days) of the patients in the post. 
+            
+            num_simulations: Expected value integer. The number of monte carlo simulations to be ran be the function. 
+            
+            post: Expected string value. The post at the hospital to filter on
+            
+            weekend: Expected boolean value. Default False, if True -> filter dataset by weekend values
+            
+            predictions: Expected boolean value. Default False, if True -> filter dataset on future forecasted values only
+            
+            year: Expected value integer. Default value 2024, if else -> filter by year of choice
+            
+            scenario: Expected string value. Default None, if else -> filter values on the scenario of choice
+
+    output: returns information from the simulation. 
+    '''
+    
     if post == "medisinsk":
         df_fin = data[data["post"] == "medisinsk"]
     elif post == "kirurgisk":
@@ -13,14 +38,37 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
     
     if weekend == True:
         df_fin = df_fin[df_fin["helg"] == 1]
-    # else:
-    #     df_fin = df_fin[df_fin["helg"] == 0]
+    else:
+        df_fin = df_fin[df_fin["helg"] == 0]
 
     if predictions == True:
         df_fin = df_fin[df_fin["År"] == 2025]
+        df_fin["Antall inn på post"] = df_fin["Prediksjoner pasientstrøm"]
+        df_fin["Belegg pr. dag"] = df_fin["Prediksjoner belegg"]
     else:
         df_fin = df_fin[df_fin["År"] == year]
+
     
+    if scenario == "helligdag":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+
+    elif scenario == "høytid":
+        if df_fin["Antall inn på post"] >=2:
+            df_fin["Antall inn på post"] = df_fin["Antall inn på post"] - 2
+            df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] - 2
+
+    elif scenario == "ulykke":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+
+    elif scenario == "krig":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 30
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 30
+
+    
+    if year == 2024:
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"].fillna(df_fin["Prediksjoner pasientstrøm"])
     df_fin = df_fin.reset_index()
     df_index = df_fin.index.values
     df_index = [x +1 for x in df_index]
@@ -49,13 +97,13 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
         for index, row in df_fin.iterrows(): 
             beds_occupied = [stay for stay in beds_occupied if stay > row["day of year"]] # Oppdater senger
             new_patients = row["Antall inn på post"]
-            total_patients_admitted += new_patients
+            total_patients_admitted += int(new_patients)
 
 
             overload_today = False
 
             # Sjekk om det er en ledig seng
-            for _ in range(new_patients):
+            for _ in range(int(new_patients)):
                 if len(beds_occupied) < total_beds:
 
                     # Tildel en seng og definer hvor lenge de vil ligge inne
@@ -89,6 +137,14 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
 
 
 def monte_carlo_dager_overbelastning(all_overload_days: list):
+    '''
+    Function to plot the overload of patients from the simulation.
+
+    params:
+            all_overload_days: All days from the simulations which indicated overload. 
+
+    output: returns a plot. 
+    '''
     # 1. antall dager med overbelastning
     plt.figure(figsize=(10, 6))
     plt.hist(all_overload_days, bins=20, color='skyblue', edgecolor='black')
@@ -99,6 +155,15 @@ def monte_carlo_dager_overbelastning(all_overload_days: list):
     plt.show()
 
 def monte_carlo_beleggsprosent(data: pd.DataFrame, all_occupancy_percents: list):
+    '''
+    Function to plot the occupancy of patients from the simulation.
+
+    params:
+            data: the data used for the plot. 
+            all_occupancy_percents: All occupancy percents from the simulation output. 
+
+    output: returns a plot. 
+    '''
     # 2. daglig beleggsprosent for én simulering (visualisere årets belastning)
     plt.figure(figsize=(10, 6))
     days_in_plot = range(data["day of year"].min(), data["day of year"].max()+1)
@@ -110,6 +175,14 @@ def monte_carlo_beleggsprosent(data: pd.DataFrame, all_occupancy_percents: list)
     plt.show()
 
 def monte_carlo_waiting_probability(waiting_probability: float):
+    '''
+    Function to plot the waiting probability for patients from the simulation.
+
+    params:
+            waiting_probability: The waiting probability for patients in the simulations.  
+
+    output: returns a plot. 
+    '''
     # 3. sannsynlighet for at pasienter må vente på seng
     plt.figure(figsize=(6, 6))
     labels = ['Fikk seng umiddelbart', 'Måtte vente på seng']
@@ -122,7 +195,33 @@ def monte_carlo_waiting_probability(waiting_probability: float):
 
 
 ######################## Bemanningsnivå og Skiftdesign ########################
-def over_under_staffed_shifts(data: pd.DataFrame, avg_length_of_stay: int, patients_per_nurse: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024):
+def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, scenario: str = None):
+    '''
+    Function to perform simulations to simulate the service side and the overstaffed vs understaffed shifts/days.
+
+    params:
+            data: Expected value pandas dataframe. Full dataset to be filtered
+            
+            staff_needed: Expected value pandas series (a column). The optimal number of staff needed (output of the optimization model) for each day. 
+            
+            average_length_of_stay: Expected value integer. The average stay (in days) of the patients in the post. 
+            
+            shifts_per_day: Expected value integer. The number of shifts in a day. 
+            
+            iterations: Expected value integer. The number of monte carlo simulations to be ran be the function. 
+            
+            post: Expected string value. The post at the hospital to filter on
+            
+            weekend: Expected boolean value. Default False, if True -> filter dataset by weekend values
+            
+            predictions: Expected boolean value. Default False, if True -> filter dataset on future forecasted values only
+            
+            year: Expected value integer. Default value 2024, if else -> filter by year of choice
+            
+            scenario: Expected string value. Default None, if else -> filter values on the scenario of choice
+
+    output: returns information about the simulation. 
+    '''
     if post == "medisinsk":
         df_fin = data[data["post"] == "medisinsk"]
     elif post == "kirurgisk":
@@ -135,14 +234,36 @@ def over_under_staffed_shifts(data: pd.DataFrame, avg_length_of_stay: int, patie
 
     if predictions == True:
         df_fin = df_fin[df_fin["År"] == 2025]
+        df_fin["Antall inn på post"] = df_fin["Prediksjoner pasientstrøm"]
+        df_fin["Belegg pr. dag"] = df_fin["Prediksjoner belegg"]
     else:
         df_fin = df_fin[df_fin["År"] == year]
     
+    if scenario == "helligdag":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+
+    elif scenario == "høytid":
+        if df_fin["Antall inn på post"] >=2:
+            df_fin["Antall inn på post"] = df_fin["Antall inn på post"] - 2
+            df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] - 2
+
+    elif scenario == "ulykke":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+
+    elif scenario == "krig":
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 30
+        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 30
+
+    if year == 2024:
+        df_fin["Antall inn på post"] = df_fin["Antall inn på post"].fillna(df_fin["Prediksjoner pasientstrøm"])
     df_fin = df_fin.reset_index()
     df_index = df_fin.index.values
     df_index = [x +1 for x in df_index]
     df_fin["day of year"] = df_index
-    
+    df_fin["staff_needed"] = staff_needed
+
     understaffed_shifts = 0
     overstaffed_shifts = 0
     total_shifts = 0
@@ -155,7 +276,7 @@ def over_under_staffed_shifts(data: pd.DataFrame, avg_length_of_stay: int, patie
         
         for index, row in df_fin.iterrows(): 
             new_admissions = row["Antall inn på post"]  # Simulerer nye pasienter
-            lengths_of_stay = np.random.exponential(avg_length_of_stay, new_admissions)  # Simulerer liggetider
+            lengths_of_stay = np.random.exponential(avg_length_of_stay, int(new_admissions))  # Simulerer liggetider
 
             # Legg til nye pasienter som skal legges inn
             patients_on_ward.extend(lengths_of_stay)
@@ -168,7 +289,8 @@ def over_under_staffed_shifts(data: pd.DataFrame, avg_length_of_stay: int, patie
             total_patients = len(patients_on_ward)
 
             # Beregn antall sykepleiere som trengs per skift
-            nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
+            # nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
+            nurses_needed_per_shift = row.staff_needed
 
             actual_nurses = 9  # Faktisk antall sykepleiere per skift
 
@@ -186,6 +308,16 @@ def over_under_staffed_shifts(data: pd.DataFrame, avg_length_of_stay: int, patie
 
 
 def under_over_staffing_plot(staffed_shifts_data, iterations, shifts_per_day):
+    '''
+    Function to visualize the understaffed vs overstaffed simulated shifts.
+
+    params:
+            staffed_shifts_data: Data on how many staff is allocated each day, and whether or not it is under/overstaffed.
+            iterations: number of simulations used
+            shifts_per_day: number of shifts each day
+    
+    output: returns a plot of the simulation results. 
+    '''
     # Forbered data for visualisering
     max_nurses_needed = int(max(staffed_shifts_data)) + 1  # Finn maksimum nødvendig sykepleiere
     shift_counts = [0] * max_nurses_needed  # Liste for å telle antall skift for hver sykepleier

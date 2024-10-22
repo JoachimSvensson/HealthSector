@@ -9,7 +9,19 @@ import matplotlib.pyplot as plt
 #################### Optimeringsmodell ####################
 def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
                      , patients_staff:int, availability:int, ServiceLevel:float):
-    
+    '''
+    Function holding the actual model.
+
+    params:
+            df_index: Expected value list. The dates for each row in the dataset. 
+            demand: Expected value list. The demand of incoming patients each time period.
+            MaxStaff. Expected value integer. The maximum staff allowed in the post each shift/time period. 
+            patients_staff: Expected value integer. Number of patients each staff can handle simultaneously. 
+            availability: Expected value integer. Number of staff ready to be put into a shift. 
+            ServiceLevel: Expected value float. How good should the service be? If 1 then zero waiting time for patients before getting attention. 
+
+    output: returns the model. 
+    ''' 
     # Creating model instance
     model = pyo.ConcreteModel()
 
@@ -78,6 +90,14 @@ def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
 
 #################### Optimeringsalgoritme ####################
 def optimize_staffing(model):
+    '''
+    Function to run and optimize the model.
+
+    params:
+            model: The actual mathematical model to be optimized.  
+
+    output: returns the optimized model, the status, the objective function value, and the staffed allocated each shift/time period. 
+    ''' 
     opt = SolverFactory('glpk')
     status = opt.solve(model, tee=True)
 
@@ -97,6 +117,14 @@ def optimize_staffing(model):
 
 #################### Plot av Optimal bemanning ####################
 def staff_opt_plot(staff_allocated: list):
+    '''
+    Function to plot the optimized model.
+
+    params:
+            staff_allocated: Expected value list. The list of optimized staff allocated to each shift/time period. 
+
+    output: returns a plot. 
+    ''' 
     # Plot staffing requirements
     plt.figure(figsize=(10, 6))
     plt.plot(staff_allocated, marker='o', color='g', linestyle='-')
