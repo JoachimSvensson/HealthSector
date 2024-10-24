@@ -32,47 +32,61 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
     '''
     
     if post == "medisinsk":
-        df_fin = data[data["post"] == "medisinsk"]
+        data = data[data["post"] == "medisinsk"]
     elif post == "kirurgisk":
-        df_fin = data[data["post"] == "kirurgisk"]
+        data = data[data["post"] == "kirurgisk"]
     
+    # if shift_type == "dag":
+    #     dataset = dataset[dataset["skift_type"] == "dag"]
+    # elif shift_type == "kveld":
+    #     dataset = dataset[dataset["skift_type"] == "kveld"]
+    # elif shift_type == "natt":
+    #     dataset = dataset[dataset["skift_type"] == "natt"]
+    
+
+    # if month is None:
+    #     pass
+    # else:
+    #     dataset = dataset[dataset["Måned"] == month]
+    
+
     if weekend == True:
-        df_fin = df_fin[df_fin["helg"] == 1]
+        data = data[data["helg"] == 1]
     else:
-        df_fin = df_fin[df_fin["helg"] == 0]
+        data = data[data["helg"] == 0]
 
     if predictions == True:
-        df_fin = df_fin[df_fin["År"] == 2025]
-        df_fin["Antall inn på post"] = df_fin["Prediksjoner pasientstrøm"]
-        df_fin["Belegg pr. dag"] = df_fin["Prediksjoner belegg"]
+        data = data[data["År"] == 2025]
+        data["Antall inn på post"] = data["Prediksjoner pasientstrøm"]
+        data["Belegg"] = data["Prediksjoner belegg"]
     else:
-        df_fin = df_fin[df_fin["År"] == year]
+        data = data[data["År"] == year]
 
     
     if scenario == "helligdag":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+        data["Antall inn på post"] = data["Antall inn på post"] + 15
+        data["Belegg"] = data["Belegg"] + 10
 
     elif scenario == "høytid":
-        if df_fin["Antall inn på post"] >=2:
-            df_fin["Antall inn på post"] = df_fin["Antall inn på post"] - 2
-            df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] - 2
+        if data["Antall inn på post"] >=2:
+            data["Antall inn på post"] = data["Antall inn på post"] - 2
+            data["Belegg"] = data["Belegg"] - 2
 
     elif scenario == "ulykke":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+        data["Antall inn på post"] = data["Antall inn på post"] + 15
+        data["Belegg"] = data["Belegg"] + 10
 
     elif scenario == "krig":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 30
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 30
+        data["Antall inn på post"] = data["Antall inn på post"] + 30
+        data["Belegg"] = data["Belegg"] + 30
 
     
-    if year == 2024:
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"].fillna(df_fin["Prediksjoner pasientstrøm"])
-    df_fin = df_fin.reset_index()
-    df_index = df_fin.index.values
+    # if year == 2024:
+    #     data["Antall inn på post"] = data["Antall inn på post"].fillna(data["Prediksjoner pasientstrøm"])
+    data = data.reset_index()
+    df_index = data.index.values
     df_index = [x +1 for x in df_index]
-    df_fin["day of year"] = df_index
+    data["day of year"] = df_index
     
     
 
@@ -94,7 +108,7 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
         if sim == 0:  
             daily_occupancy_record = []  
         
-        for index, row in df_fin.iterrows(): 
+        for index, row in data.iterrows(): 
             beds_occupied = [stay for stay in beds_occupied if stay > row["day of year"]] # Oppdater senger
             new_patients = row["Antall inn på post"]
             total_patients_admitted += int(new_patients)
@@ -122,7 +136,7 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
                 daily_occupancy_record.append(len(beds_occupied) / total_beds)
 
         total_overloaded_days += daily_overload
-        total_bed_occupancy_overall += bed_occupancy / df_fin["day of year"].max()
+        total_bed_occupancy_overall += bed_occupancy / data["day of year"].max()
         all_overload_days.append(daily_overload)
         
         if sim == 0:
@@ -131,9 +145,12 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
     # Beregn gjennomsnittlig overbelastning, beleggsprosent og sannsynlighet
     avg_overload_days = total_overloaded_days / num_simulations
     avg_occupancy_percentage = (total_bed_occupancy_overall / num_simulations) * 100
-    waiting_probability = total_patients_waiting / total_patients_admitted
+    try:
+        waiting_probability = total_patients_waiting / total_patients_admitted
+    except ZeroDivisionError:
+        waiting_probability = 0
     
-    return df_fin, avg_overload_days, avg_occupancy_percentage, waiting_probability, all_overload_days, all_occupancy_percents
+    return data, avg_overload_days, avg_occupancy_percentage, waiting_probability, all_overload_days, all_occupancy_percents
 
 
 def monte_carlo_dager_overbelastning(all_overload_days: list):
@@ -195,7 +212,7 @@ def monte_carlo_waiting_probability(waiting_probability: float):
 
 
 ######################## Bemanningsnivå og Skiftdesign ########################
-def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, scenario: str = None):
+def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None):
     '''
     Function to perform simulations to simulate the service side and the overstaffed vs understaffed shifts/days.
 
@@ -218,51 +235,69 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
             
             year: Expected value integer. Default value 2024, if else -> filter by year of choice
             
+            month: Expected value list. Default is None, if else -> filter by month of choice
+
+            shift_type: Expected value string. Default is None, if else -> filter data by choice of shift type (dag, kveld, natt)
+            
             scenario: Expected string value. Default None, if else -> filter values on the scenario of choice
 
     output: returns information about the simulation. 
     '''
     if post == "medisinsk":
-        df_fin = data[data["post"] == "medisinsk"]
+        data = data[data["post"] == "medisinsk"]
     elif post == "kirurgisk":
-        df_fin = data[data["post"] == "kirurgisk"]
+        data = data[data["post"] == "kirurgisk"]
     
-    if weekend == True:
-        df_fin = df_fin[df_fin["helg"] == 1]
+    if shift_type == "dag":
+        data = data[data["skift_type"] == "dag"]
+    elif shift_type == "kveld":
+        data = data[data["skift_type"] == "kveld"]
+    elif shift_type == "natt":
+        data = data[data["skift_type"] == "natt"]
+    
+    if month is None:
+        pass
     else:
-        df_fin = df_fin[df_fin["helg"] == 0]
+        data = data.query(f"Måned in {month}")
+    
+
+
+    if weekend == True:
+        data = data[data["helg"] == 1]
+    else:
+        data = data[data["helg"] == 0]
 
     if predictions == True:
-        df_fin = df_fin[df_fin["År"] == 2025]
-        df_fin["Antall inn på post"] = df_fin["Prediksjoner pasientstrøm"]
-        df_fin["Belegg pr. dag"] = df_fin["Prediksjoner belegg"]
+        data = data[data["År"] == 2025]
+        data["Antall inn på post"] = data["Prediksjoner pasientstrøm"]
+        data["Belegg"] = data["Prediksjoner belegg"]
     else:
-        df_fin = df_fin[df_fin["År"] == year]
+        data = data[data["År"] == year]
     
     if scenario == "helligdag":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+        data["Antall inn på post"] = data["Antall inn på post"] + 15
+        data["Belegg"] = data["Belegg"] + 10
 
     elif scenario == "høytid":
-        if df_fin["Antall inn på post"] >=2:
-            df_fin["Antall inn på post"] = df_fin["Antall inn på post"] - 2
-            df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] - 2
+        if data["Antall inn på post"] >=2:
+            data["Antall inn på post"] = data["Antall inn på post"] - 2
+            data["Belegg"] = data["Belegg"] - 2
 
     elif scenario == "ulykke":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 15
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 10
+        data["Antall inn på post"] = data["Antall inn på post"] + 15
+        data["Belegg"] = data["Belegg"] + 10
 
     elif scenario == "krig":
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"] + 30
-        df_fin["Belegg pr. dag"] = df_fin["Belegg pr. dag"] + 30
+        data["Antall inn på post"] = data["Antall inn på post"] + 30
+        data["Belegg"] = data["Belegg"] + 30
 
-    if year == 2024:
-        df_fin["Antall inn på post"] = df_fin["Antall inn på post"].fillna(df_fin["Prediksjoner pasientstrøm"])
-    df_fin = df_fin.reset_index()
-    df_index = df_fin.index.values
+    # if year == 2024:
+    #     data["Antall inn på post"] = data["Antall inn på post"].fillna(data["Prediksjoner pasientstrøm"])
+    data = data.reset_index()
+    df_index = data.index.values
     df_index = [x +1 for x in df_index]
-    df_fin["day of year"] = df_index
-    df_fin["staff_needed"] = staff_needed
+    data["day of year"] = df_index
+    data["staff_needed"] = staff_needed
 
     understaffed_shifts = 0
     overstaffed_shifts = 0
@@ -274,7 +309,7 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
         yearly_overstaffed_shifts = 0  # Teller hvor mange skift per år med overbemanning
         patients_on_ward = []  # Liste for å holde oversikt over pasienter som allerede ligger inne
         
-        for index, row in df_fin.iterrows(): 
+        for index, row in data.iterrows(): 
             new_admissions = row["Antall inn på post"]  # Simulerer nye pasienter
             lengths_of_stay = np.random.exponential(avg_length_of_stay, int(new_admissions))  # Simulerer liggetider
 
@@ -285,14 +320,14 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
             patients_on_ward = [stay - 1 for stay in patients_on_ward]  # Reduserer liggetiden med 1 for hver dag
             patients_on_ward = [stay for stay in patients_on_ward if stay > 0]  # Fjern pasienter som er utskrevet
 
-            # Beregn total antall pasienter som trenger pleie i dag
-            total_patients = len(patients_on_ward)
+            # # Beregn total antall pasienter som trenger pleie i dag
+            # total_patients = len(patients_on_ward)
 
             # Beregn antall sykepleiere som trengs per skift
             # nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
             nurses_needed_per_shift = row.staff_needed
 
-            actual_nurses = 9  # Faktisk antall sykepleiere per skift
+            actual_nurses = 12  # Faktisk antall sykepleiere per skift
 
             # Simuler skiftene for dagen
             for shift in range(shifts_per_day):
