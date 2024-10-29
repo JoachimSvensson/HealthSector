@@ -212,7 +212,7 @@ def monte_carlo_waiting_probability(waiting_probability: float):
 
 
 ######################## Bemanningsnivå og Skiftdesign ########################
-def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None):
+def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None, curr_sit: int = 12):
     '''
     Function to perform simulations to simulate the service side and the overstaffed vs understaffed shifts/days.
 
@@ -327,7 +327,8 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
             # nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
             nurses_needed_per_shift = row.staff_needed
 
-            actual_nurses = 12  # Faktisk antall sykepleiere per skift
+            actual_nurses = curr_sit              
+
 
             # Simuler skiftene for dagen
             for shift in range(shifts_per_day):
@@ -364,9 +365,9 @@ def under_over_staffing_plot(staffed_shifts_data, iterations, shifts_per_day):
 
     # Visualisering av gjennomsnittlig bemanningsbehov
     plt.bar(range(max_nurses_needed), average_shifts_needed, color='orange')
-    plt.xlabel('Antall sykepleiere nødvendig per skift')
-    plt.ylabel('Gjennomsnittlig antall skift ila ett år')
-    plt.title('Gjennomsnittlig antall skift per bemanningsbehov over ett år')
+    plt.xlabel('Antall sykepleiere nødvendig per time')
+    plt.ylabel('Gjennomsnittlig antall timer over tidsperioden')
+    plt.title('Gjennomsnittlig antall timer per bemanningsbehov over tidsperioden')
     plt.xticks(range(0, max_nurses_needed, 1))  # Vis alle unike verdier på x-aksen
     plt.ylim(0, 365 * shifts_per_day)  # Sett y-aksen opp til maksimalt antall skift i året
     plt.grid(axis='y')

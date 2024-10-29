@@ -112,7 +112,7 @@ def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predict
     return dataset
 
 
-############################ Dataset for Prediksjoner ############################
+############################ Dataset for prediksjoner ############################
 def create_forecast_dataset(path: str, sheetname_med: str, sheetname_kir: str) -> pd.DataFrame:
     '''
     Function to load and transform the dataset containing the predictions.
@@ -133,6 +133,60 @@ def create_forecast_dataset(path: str, sheetname_med: str, sheetname_kir: str) -
     forecasted_demand = forecasted_demand[forecasted_demand["Prediksjoner pasientstrøm"] >= 0]
     forecasted_demand.rename(columns={"Belegg pr. dag":"Belegg"}, inplace=True, errors="raise")
     return forecasted_demand
+
+
+############################ Dataset for timesbaserte prediksjoner ############################
+def create_forecast_hourly(data: pd.DataFrame, post: str) -> pd.DataFrame:
+    use_poisson = True 
+    variability_factor = 0.05
+
+    # Create a DataFrame to hold the next year's dates
+    next_year = pd.DataFrame({
+        'Dato': pd.date_range('2025-01-01', '2025-10-15', freq='H').date,
+        'Timer': pd.date_range('2025-01-01', '2025-10-15', freq='H').hour,
+    })
+
+    next_year['Dato'] = pd.to_datetime(next_year['Dato'].astype(str) + ' ' + next_year['Timer'].astype(str) + ':00:00')
+    next_year['Dato'] = next_year['Dato'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    next_year['Dato'] = pd.to_datetime(next_year['Dato'])
+
+    next_year['Predicted Demand'] = np.nan
+    next_year['Predicted Belegg'] = np.nan
+
+    for i, row in next_year.iterrows():
+        historical_row = data[
+            (data['DatoTid'] == row['Dato'] - pd.DateOffset(years=1)) &
+            (data['Timer'] == row['Timer'])
+        ]
+        if not historical_row.empty:
+            base_demand = historical_row['Antall inn på post'].values[0]
+            base_belegg = historical_row['Belegg'].values[0]
+            
+            # Apply random variability
+            if use_poisson:
+                predicted_demand = np.random.poisson(base_demand * (1 + variability_factor))
+                predicted_belegg = np.random.poisson(base_belegg * (1 + variability_factor))
+            else:
+                predicted_demand = np.random.normal(base_demand, base_demand * variability_factor)
+                predicted_belegg = np.random.normal(base_belegg, base_belegg * variability_factor)
+            
+            next_year.at[i, 'Predicted Demand'] = max(0, predicted_demand)  # non-negative demand
+            next_year.at[i, 'Predicted Belegg'] = max(0, predicted_belegg)  # non-negative demand
+
+    next_year["Predicted Demand"].fillna(1.0, inplace=True)
+    next_year["Predicted Belegg"].fillna(1.0, inplace=True)
+    next_year["post"] = post
+    next_year.rename(columns={"Dato": "DatoTid", "Predicted Demand":"Prediksjoner pasientstrøm", "Predicted Belegg": "Prediksjoner belegg"}, inplace=True, errors="raise")
+    next_year = next_year[["DatoTid", "Timer", "Prediksjoner pasientstrøm", "Prediksjoner belegg", "post"]]
+
+    next_year['helg'] = next_year['DatoTid'].dt.weekday.apply(lambda x: 1 if x >= 5 else 0)
+
+    next_year["År"] = next_year['DatoTid'].dt.year
+    next_year["Måned"] = next_year['DatoTid'].dt.month_name()
+    next_year["Dag"] = next_year["DatoTid"].dt.day_name()
+    next_year["Uke"] = next_year["DatoTid"].dt.isocalendar().week
+    next_year["Timer"] = next_year["Timer"].astype(int) 
+    return next_year
 
 
 

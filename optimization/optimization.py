@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 #################### Optimeringsmodell ####################
 def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
-                     , patients_staff:int, availability:int, ServiceLevel:float):
+                     , patients_staff:int, availability:int, ServiceLevel:float, night: bool):
     '''
     Function holding the actual model.
 
@@ -31,6 +31,12 @@ def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
 
     #### Parameters ####
     
+    # Static variable of night vs day
+    if night == True:
+        need = 0.33
+    else:
+        need = 1
+
     # Demand of Patients
     demand_dict = {df_index[i]: demand[i] for i in range(len(df_index))}
     model.D = pyo.Param(model.setShift, initialize = demand_dict, within = pyo.Integers)
@@ -72,7 +78,7 @@ def labor_scheduling(df_index:list, demand:list, MaxStaff:int\
     # Demand Coverage Constraint
     model.C1 = pyo.ConstraintList()
     for s in model.setShift:
-        model.C1.add(expr = x[s] >= SL*(D[s]/PPS))
+        model.C1.add(expr = x[s] >= need*(SL*(D[s]/PPS)))
 
     # Staff Availability
     model.C2 = pyo.ConstraintList()
@@ -116,7 +122,7 @@ def optimize_staffing(model):
 
 
 #################### Plot av Optimal bemanning ####################
-def staff_opt_plot(staff_allocated: list):
+def staff_opt_plot(staff_allocated: list, fin: int, siv: int, unn: int):
     '''
     Function to plot the optimized model.
 
@@ -128,9 +134,13 @@ def staff_opt_plot(staff_allocated: list):
     # Plot staffing requirements
     plt.figure(figsize=(10, 6))
     plt.plot(staff_allocated, marker='o', color='g', linestyle='-')
-    plt.title('Staffing Requirements for Post at Hammerfest')
-    plt.xlabel('Day')
-    plt.ylabel('Number of Staff Required')
+    plt.axhline(y=fin, color="r", linewidth = 2, linestyle = "-", label = "Fin")
+    plt.axhline(y=siv, color="b", linewidth = 2, linestyle = "-", label = "SiV")
+    plt.axhline(y=unn, color="y", linewidth = 2, linestyle = "-", label = "UNN")
+    plt.title('Bemanning for post hos Finnmarksykehuset')
+    plt.xlabel('Time i perioden')
+    plt.ylabel('Antall nødvendig bemanning')
     plt.grid(True)
     plt.tight_layout()
+    plt.legend(loc = "upper right")
     plt.show()
