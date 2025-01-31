@@ -38,9 +38,3 @@ def create_app():
     
     return app
 
-
-
-# if __name__ == '__main__':
-#     # app.run(debug=True)
-#     from werkzeug.serving import run_simple
-#     run_simple('localhost', 5000, app)

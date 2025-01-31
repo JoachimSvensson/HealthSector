@@ -112,7 +112,7 @@ def register_routes(app,db):
     def get_table():
         params = request.json
         sheet_name = params.get('sheet_name', 'bemanningsplan (2)')
-        global sheets
+        nonlocal sheets
         df = sheets.get(sheet_name)
         df_copy = df.copy(deep=True)
         if df_copy is not None:
@@ -147,7 +147,7 @@ def register_routes(app,db):
 
     @app.route('/api/get_dropdown_values', methods = ["POST"])
     def get_dropdown_values():
-        global bemanningsplaner
+        nonlocal bemanningsplaner
         return jsonify({'plan': bemanningsplaner})
 
 
@@ -165,7 +165,7 @@ def register_routes(app,db):
         plan = params.get('plan', "Grunnplan")
         
 
-        global df_full, bemanningsplan_df, ppp_df
+        nonlocal df_full, bemanningsplan_df, ppp_df
         
         uten_ansatte = df_full.copy(deep=True)
         pasient_per_pleier  = ppp_df.copy(deep=True)
