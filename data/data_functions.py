@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 
 ############################ Datalast og Transformasjoner ############################
@@ -27,7 +28,6 @@ def datalast_behandling(path: str) -> pd.DataFrame:
     fin_data['helg'] = fin_data['Dato'].dt.weekday.apply(lambda x: 1 if x >= 5 else 0)
     fin_data.rename(columns={"Belegg pr. dag":"Belegg"}, inplace=True, errors="raise")
     return fin_data
-
 
 ############################ Dataset for optimalisering av bemanningsnivå ############################
 def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None) -> pd.DataFrame:
@@ -107,10 +107,9 @@ def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predict
     #     dataset["Belegg"] = dataset["Belegg"].fillna(dataset["Prediksjoner belegg"])
     dataset = dataset.reset_index()
     dataset.drop(["index"], axis=1, inplace=True)
-    dataset = dataset[["DatoTid", "Antall inn på post", "Belegg"]]
+    dataset = dataset[["DatoTid", "Timer", "skift_type", "Antall inn på post", "Belegg"]]
 
     return dataset
-
 
 ############################ Dataset for prediksjoner ############################
 def create_forecast_dataset(path: str, sheetname_med: str, sheetname_kir: str) -> pd.DataFrame:
@@ -133,7 +132,6 @@ def create_forecast_dataset(path: str, sheetname_med: str, sheetname_kir: str) -
     forecasted_demand = forecasted_demand[forecasted_demand["Prediksjoner pasientstrøm"] >= 0]
     forecasted_demand.rename(columns={"Belegg pr. dag":"Belegg"}, inplace=True, errors="raise")
     return forecasted_demand
-
 
 ############################ Dataset for timesbaserte prediksjoner ############################
 def create_forecast_hourly(data: pd.DataFrame, post: str) -> pd.DataFrame:
@@ -188,8 +186,6 @@ def create_forecast_hourly(data: pd.DataFrame, post: str) -> pd.DataFrame:
     next_year["Timer"] = next_year["Timer"].astype(int) 
     return next_year
 
-
-
 ############################ Dataset for timesbaserte analyser ############################
 def create_hourly_dataframe(path_med: str, path_kir: str) -> pd.DataFrame:
     hf_med_time = pd.read_excel(path_med, sheet_name="Results")
@@ -228,18 +224,89 @@ def create_hourly_dataframe(path_med: str, path_kir: str) -> pd.DataFrame:
 
     return fin_data
 
+############################ Funksjon for å lese inn alle filer fra mappe ############################
+def read_folder_to_dfs(folder_path:str, file_extension:str = ".xlsx") -> dict:
+    """
+    Reads all files with a specific extension from a folder into separate pandas DataFrames.
+    
+    Parameters:
+    - folder_path (str): Path to the folder containing files.
+    - file_extension (str): Extension of the files to read. Default is ".csv".
+    
+    Returns:
+    - dict: A dictionary where keys are file names without extensions and values are DataFrames.
+    """
+    dfs = {}
+    
+    for filename in os.listdir(folder_path):
+        if filename.endswith(file_extension):
+            file_path = os.path.join(folder_path, filename)
+            df = pd.read_excel(file_path) if file_extension == ".xlsx" else pd.read_csv(file_path)
+            file_key = os.path.splitext(filename)[0]
+            dfs[file_key] = df
+            
+    return dfs
+
+############################ Funksjon for å lage timesbasert one big table ############################
+def create_hourly_obt(dfs_dict:dict)-> pd.DataFrame:
+    """
+    Creates hourly dataframes into one big table of all years.
+    
+    Parameters:
+    - dfs_dict (dict): Dictionary containing all dataframes to be transformed
+    
+    Returns:
+    - obt_df: A dataframe containing the transformed dataframes of every year into one big table.
+    """
+    df_list = []
+    for df in dfs_dict:
+        dataframe = dfs_dict[df]
+        try:
+            dataframe = dataframe[dataframe["Timer"].apply(lambda x: not (pd.isna(x) or x == "."))]
+        except KeyError:
+            dataframe = dataframe[dataframe["Timer (0-23)"].apply(lambda x: not (pd.isna(x) or x == "."))]
+        dataframe.reset_index(inplace=True)
+        dataframe.drop("index", axis=1, inplace=True)
+        try:
+            dataframe.rename(columns={"Måned-1":"Måned", "Timer (0-23)":"Timer"}, inplace=True, errors="raise") 
+        except:
+            pass
+        if df[:3] == "med":
+            dataframe["post"] = "medisinsk"
+        else:
+            dataframe["post"] = "kirurgisk"
+        df_list.append(dataframe)
+
+    obt_df = pd.concat(df_list, axis=0, ignore_index=True)
+    obt_df['helg'] = obt_df['Dato'].dt.weekday.apply(lambda x: 1 if x >= 5 else 0)
+    obt_df["År"] = obt_df['Dato'].dt.year
+    obt_df["Måned"] = obt_df['Dato'].dt.month_name()
+    obt_df["Dag"] = obt_df["Dato"].dt.day_name()
+    obt_df["Uke"] = obt_df["Dato"].dt.isocalendar().week
+    obt_df["Timer"] = obt_df["Timer"].astype(int) 
+    obt_df['DatoTid'] = obt_df['Dato'] + pd.to_timedelta(obt_df['Timer'], unit='h')
+
+    obt_df = obt_df[["År", "Måned", "Uke", "Dag", "DatoTid", "Timer", "post", "helg", "Antall inn på post", "Antall pasienter ut av Post"]]
+    obt_df = obt_df.sort_values(by=["DatoTid"]).reset_index()
+    obt_df.drop(["index"], axis=1, inplace=True)
+    return obt_df
 
 ############################ Funksjon for å kalkulere antall pasienter på post pr time ############################
 initial_patients = 0
 current_patients = initial_patients
+previous_year = None 
 
 def calculate_patients(row):
-    global current_patients
+    global current_patients, previous_year
+    
+    if previous_year is not None and row["År"] != previous_year:
+        current_patients = 12
+    previous_year = row["År"]
+
     current_patients += row["Antall inn på post"] - row["Antall pasienter ut av Post"]
     current_patients = max(0, current_patients)
     
     return current_patients
-
 
 ############################ Funksjon for å definere skift type ############################
 def add_shift_type(row):

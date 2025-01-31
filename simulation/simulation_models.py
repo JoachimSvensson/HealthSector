@@ -81,15 +81,14 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
         data["Belegg"] = data["Belegg"] + 30
 
     
-    # if year == 2024:
-    #     data["Antall inn på post"] = data["Antall inn på post"].fillna(data["Prediksjoner pasientstrøm"])
+    if year == 2024:
+        data["Antall inn på post"] = data["Antall inn på post"].fillna(data["Prediksjoner pasientstrøm"])
     data = data.reset_index()
     df_index = data.index.values
     df_index = [x +1 for x in df_index]
     data["day of year"] = df_index
     
-    
-
+    variability_factor = 0.1
     total_bed_occupancy_overall = 0
     total_overloaded_days = 0
     total_patients_waiting = 0
@@ -110,8 +109,13 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
         
         for index, row in data.iterrows(): 
             beds_occupied = [stay for stay in beds_occupied if stay > row["day of year"]] # Oppdater senger
-            new_patients = row["Antall inn på post"]
-            total_patients_admitted += int(new_patients)
+            arrivals = row["Antall inn på post"]
+            new_patients = np.random.poisson(arrivals * (1 + variability_factor))
+            
+            try:
+                total_patients_admitted += int(new_patients)
+            except ValueError:
+                total_patients_admitted += 0
 
 
             overload_today = False
@@ -151,7 +155,6 @@ def monte_carlo_simulation(data: pd.DataFrame, total_beds: int, average_stay: in
         waiting_probability = 0
     
     return data, avg_overload_days, avg_occupancy_percentage, waiting_probability, all_overload_days, all_occupancy_percents
-
 
 def monte_carlo_dager_overbelastning(all_overload_days: list):
     '''
@@ -303,6 +306,8 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
     overstaffed_shifts = 0
     total_shifts = 0
     staffed_shifts_data = []
+    # avg_demand_pr_hour = sum(data.loc[:,'Antall inn på post'])/len(data)
+    variability_factor = 0.3
 
     for _ in range(iterations):
         yearly_understaffed_shifts = 0  # Teller hvor mange skift per år med underbemanning
@@ -310,7 +315,8 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
         patients_on_ward = []  # Liste for å holde oversikt over pasienter som allerede ligger inne
         
         for index, row in data.iterrows(): 
-            new_admissions = row["Antall inn på post"]  # Simulerer nye pasienter
+            arrivals = row["Antall inn på post"]
+            new_admissions = np.random.poisson(arrivals * (1 + variability_factor))  # Simulerer nye pasienter
             lengths_of_stay = np.random.exponential(avg_length_of_stay, int(new_admissions))  # Simulerer liggetider
 
             # Legg til nye pasienter som skal legges inn
@@ -324,8 +330,10 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
             # total_patients = len(patients_on_ward)
 
             # Beregn antall sykepleiere som trengs per skift
+            # patients_per_nurse = 3 #hard-kodet, må endres dersom skal brukes
             # nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
-            nurses_needed_per_shift = row.staff_needed
+            opt_num_nurses = row.staff_needed
+            nurses_needed_per_shift = np.random.poisson(opt_num_nurses * (1 + variability_factor))
 
             actual_nurses = curr_sit              
 
@@ -341,7 +349,6 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
                     yearly_overstaffed_shifts += 1
                 staffed_shifts_data.append(nurses_needed_per_shift)
     return understaffed_shifts, overstaffed_shifts, total_shifts, staffed_shifts_data
-
 
 def under_over_staffing_plot(staffed_shifts_data, iterations, shifts_per_day):
     '''
