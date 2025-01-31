@@ -15,6 +15,7 @@ warnings.filterwarnings("ignore")
 
 
 def register_routes(app,db):
+    from datetime import time, timedelta
     # dfs_dict = read_folder_to_dfs("./data/timesdata")
     # fin_data_hourly = create_hourly_obt(dfs_dict)
     # fin_data_hourly["skift_type"] = fin_data_hourly.apply(add_shift_type, axis=1)

@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore")
 
 
 db = SQLAlchemy()
-# flask init db
+# flask db init
 # flask db migrate
 # flask db upgrade
 
