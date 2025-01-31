@@ -30,7 +30,7 @@ def datalast_behandling(path: str) -> pd.DataFrame:
     return fin_data
 
 ############################ Dataset for optimalisering av bemanningsnivå ############################
-def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None) -> pd.DataFrame:
+def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predictions: bool = False, year: list = [2024], month: list = None, shift_type: str = None, scenario: str = None) -> pd.DataFrame:
     '''
     Function to extract the dataset to use for the optimization process og optimal staffing levels.
 
@@ -83,8 +83,9 @@ def opt_dataset(dataset: pd.DataFrame, post: str, weekend: bool = False, predict
         dataset["Antall inn på post"] = dataset["Prediksjoner pasientstrøm"]
         dataset["Belegg"] = dataset["Prediksjoner belegg"]
     else:
-        dataset = dataset[dataset["År"] == year]
-    
+        # dataset = dataset[dataset["År"] == year]
+        dataset = dataset.query(f"År in {year}")
+
     if scenario == "helligdag":
         dataset["Antall inn på post"] = dataset["Antall inn på post"] + 15
         dataset["Belegg"] = dataset["Belegg"] + 10
@@ -292,7 +293,7 @@ def create_hourly_obt(dfs_dict:dict)-> pd.DataFrame:
     return obt_df
 
 ############################ Funksjon for å kalkulere antall pasienter på post pr time ############################
-initial_patients = 0
+initial_patients = 22
 current_patients = initial_patients
 previous_year = None 
 
@@ -300,7 +301,7 @@ def calculate_patients(row):
     global current_patients, previous_year
     
     if previous_year is not None and row["År"] != previous_year:
-        current_patients = 12
+        current_patients = 22
     previous_year = row["År"]
 
     current_patients += row["Antall inn på post"] - row["Antall pasienter ut av Post"]
@@ -318,3 +319,331 @@ def add_shift_type(row):
         shift_type = "natt"
         
     return shift_type
+
+
+
+############################# Bemanningsverktøyet #############################
+def bemanningsverktoy(df, tidsperiode, skift, aggregering, visualiseringskolonne):
+    kombinert_tabell = df
+    if tidsperiode == "hele perioden":
+        kombinert_tabell = kombinert_tabell
+    else:
+        tidsperiode = pd.to_datetime(tidsperiode)
+        start, end = tidsperiode
+        kombinert_tabell = kombinert_tabell[(kombinert_tabell["DatoTid"] >= start) & (kombinert_tabell["DatoTid"] <= end)] 
+    
+    
+    if skift != "alle skift":
+        skifttype = skift
+        kombinert_tabell = kombinert_tabell[kombinert_tabell["skift_type"] == skifttype]   
+    else:
+        kombinert_tabell = kombinert_tabell
+    
+    # ukesnivå
+    if aggregering == "gjennomsnittlig uke":
+        # Average week
+        tabell = kombinert_tabell.groupby(["Dag", "Timer"])[visualiseringskolonne].mean().reset_index()
+        # result = result.pivot(index="Timer", columns="Dag", values=visualiseringskolonne)
+    elif aggregering == "beste uke":
+        result = kombinert_tabell.groupby("Uke")[visualiseringskolonne].mean().idxmin()
+        tabell = kombinert_tabell[kombinert_tabell["Uke"] == result]
+    elif aggregering == "dårligste uke":
+        result = kombinert_tabell.groupby("Uke")[visualiseringskolonne].mean().idxmax()
+        tabell = kombinert_tabell[kombinert_tabell["Uke"] == result]
+    
+    # Dagsnivå
+    elif aggregering == "gjennomsnittlig dag":
+        tabell = kombinert_tabell.groupby("Timer")[visualiseringskolonne].mean().reset_index()
+    elif aggregering == "beste dag":
+        result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().idxmin()
+        tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
+        if len(tabell) < 80:
+            result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().nsmallest(2).idxmax()
+            tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
+    elif aggregering == "dårligste dag":
+        result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().idxmax()
+        tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]  
+        
+    # skift nivå
+    elif aggregering == "gjennomsnittlig skift":
+        tabell = kombinert_tabell.groupby("skift_type")[visualiseringskolonne].mean().reset_index()
+    try:
+        if aggregering == "beste skift":
+            result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().idxmin()
+            tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
+            if len(tabell) < 15:
+                result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().nsmallest(2).idxmax()
+                tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
+        elif aggregering == "dårligste skift":
+            result = kombinert_tabell.groupby(["Uke","Dag"])[visualiseringskolonne].mean().idxmax()
+            tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
+    except:
+        tabell = None
+    
+    
+    if "hele perioden" in tidsperiode and aggregering == "hele perioden":
+        visualisering = kombinert_tabell[visualiseringskolonne].tolist()
+        plt.figure(figsize=(20, 8))
+        # plt.plot(kombinert_tabell["DatoTid"],needed_nurses_intensity_rounded, marker='o', color='g', linestyle='-')
+        plt.plot(kombinert_tabell["DatoTid"],visualisering, marker='o', color='g', linestyle='-')
+        plt.title(f'Variasjon i {visualiseringskolonne} for post hos Finnmarksykehuset gjennom tidsperiode')
+        # plt.axhline(y=1.0, color="r", linewidth = 2, linestyle = "-")
+        plt.xlabel('Tidsperiode')
+        plt.ylabel(f'{visualiseringskolonne} (i desimal)')
+        plt.grid(True)
+        plt.xticks(kombinert_tabell['DatoTid'].dt.date.unique().tolist(), rotation=45)
+        plt.tight_layout()
+        plt.show()
+
+    else:
+        try:
+            df = tabell
+            # Konverter Timer til datetime.time og deretter til minutter siden midnatt
+            df["Timer"] = pd.to_datetime(df["Timer"], format="%H:%M:%S").dt.time
+            df["Minutes"] = df["Timer"].apply(lambda t: t.hour * 60 + t.minute)
+
+            # Lag plottet
+            plt.figure(figsize=(12, 6))
+
+            if aggregering in ["gjennomsnittlig uke", "beste uke", "dårligste uke"]:
+                # Plot en linje for hver dag
+                for dag in df["Dag"].unique():
+                    subset = df[df["Dag"] == dag]
+                    plt.plot(subset["Minutes"], subset[visualiseringskolonne], marker="o", label=dag)
+
+            else:
+                plt.plot(df["Minutes"], df[visualiseringskolonne], marker="o")
+
+            # Tilpass aksene
+            plt.xlabel("Tid", fontsize=12)
+            plt.ylabel(visualiseringskolonne, fontsize=12)
+            plt.title(f"{visualiseringskolonne} for {aggregering} over {tidsperiode}", fontsize=14)
+            plt.xticks(
+                ticks=[i * 60 for i in range(24)],
+                labels=[f"{i:02d}:00" for i in range(24)],  # Viser timer fra 00:00 til 23:00
+                rotation=45,
+                fontsize=10,
+            )
+            if aggregering in ["gjennomsnittlig uke", "beste uke", "dårligste uke"]:
+                plt.legend(title="Dag", fontsize=10)
+                
+            plt.grid(True, linestyle="--", alpha=0.7)
+            plt.tight_layout()
+            # plt.show()
+        except:
+            pass
+    # return df
+
+
+
+
+# def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
+#     from datetime import time
+#     bemanningsplan["AntallAnsatte"] = 0
+#     bemanningsplan["PreDef_PPP"] = 0
+
+#     for _, row in df.iterrows():
+#         start_time = row["Start"]
+#         end_time = row["End"]
+#         weeks = [int(w) for w in row["Week"].split("-")]
+
+#         for day_idx, day in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]):
+#             employees = row[day]
+#             if len(ppp_df) > 0:
+#                 ppp = ppp_df.columns[2:-2][day_idx]
+#                 ppp_level = ppp_df.loc[_, ppp]
+#             for week in weeks:
+#                 if start_time <= end_time:  # Vanlig skift innenfor samme dag
+#                     mask = (
+#                         (bemanningsplan["Uke"] == week) &
+#                         (bemanningsplan["Dag"] == day) &
+#                         (bemanningsplan["Timer"] >= start_time) &
+#                         (bemanningsplan["Timer"] < end_time)
+#                     )
+#                     bemanningsplan.loc[mask, "AntallAnsatte"] += employees
+#                     if len(ppp_df) > 0:
+#                         bemanningsplan.loc[mask, "PreDef_PPP"] += ppp_level
+
+#                 else:  # Skift som går over til neste dag
+#                     mask_day1 = (
+#                         (bemanningsplan["Uke"] == week) &
+#                         (bemanningsplan["Dag"] == day) &
+#                         (bemanningsplan["Timer"] >= start_time) &
+#                         (bemanningsplan["Timer"] < time(23,59, 59))
+#                     )
+#                     bemanningsplan.loc[mask_day1, "AntallAnsatte"] += employees
+#                     if len(ppp_df) > 0:
+#                         bemanningsplan.loc[mask_day1, "PreDef_PPP"] += ppp_level
+
+#                     # Timer fra midnatt til neste skift
+#                     next_day_idx = (day_idx + 1) % 7  
+#                     next_day = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][next_day_idx]
+#                     mask_day2 = (
+#                         (bemanningsplan["Uke"] == week) &
+#                         (bemanningsplan["Dag"] == next_day) &
+#                         (bemanningsplan["Timer"] >= time(0,0)) &
+#                         (bemanningsplan["Timer"] < end_time)
+#                     )
+#                     bemanningsplan.loc[mask_day2, "AntallAnsatte"] += employees
+#                     if len(ppp_df) > 0:
+#                         bemanningsplan.loc[mask_day2, "PreDef_PPP"] += ppp_level
+
+#     return bemanningsplan
+
+
+def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
+    from datetime import time
+    bemanningsplan["AntallAnsatte"] = 0
+    bemanningsplan["PreDef_PPP"] = 0
+
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    for index, row in df.iterrows():
+        start_time = row["Start"]
+        end_time = row["End"]
+        weeks = [int(w) for w in row["Week"].split("-")]
+
+        for day_idx, day in enumerate(days_of_week):
+            employees = row[day]
+            if len(ppp_df) > 0:
+                ppp = ppp_df.columns[2:-2][day_idx]
+                ppp_level = ppp_df.loc[index, ppp]
+
+            mask = (bemanningsplan["Dag"] == day) & (bemanningsplan["Uke"].isin(weeks))
+
+            # Convert start_time and end_time to datetime for comparison
+            start_datetime = pd.to_datetime(f"2000-01-01 {start_time}", format="%Y-%m-%d %H:%M:%S")
+            end_datetime = pd.to_datetime(f"2000-01-01 {end_time}", format="%Y-%m-%d %H:%M:%S")
+
+            if start_datetime <= end_datetime:
+                # When the shift is within the same day
+                mask = mask & (bemanningsplan["Timer"].between(start_datetime.time(), (end_datetime - pd.Timedelta(seconds=1)).time()))
+            else:
+                # For shifts that go over midnight
+                mask1 = mask & (bemanningsplan["Timer"].between(start_datetime.time(), time(23, 59, 59)))
+                mask2 = mask & (bemanningsplan["Timer"].between(time(0, 0), end_datetime.time()))
+                mask = mask1 | mask2
+
+            bemanningsplan.loc[mask, "AntallAnsatte"] += employees
+            if len(ppp_df) > 0:
+                bemanningsplan.loc[mask, "PreDef_PPP"] += ppp_level
+
+    return bemanningsplan
+
+
+
+# def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
+#     from datetime import time
+#     bemanningsplaner = df.Navn.unique().tolist()
+#     for plan in bemanningsplaner:
+#         bemanningsplan[f"{plan}_AntallAnsatte"] = 0
+#         bemanningsplan[f"{plan}_PreDef_PPP"] = 0
+#         df_test = df[df["Navn"] == plan]
+#         for _, row in df_test.iterrows():
+#             start_time = row["Start"]
+#             end_time = row["End"]
+#             weeks = [int(w) for w in row["Week"].split("-")]
+
+#             for day_idx, day in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]):
+#                 employees = row[day]
+#                 if len(ppp_df) > 0:
+#                     ppp = ppp_df.columns[2:-2][day_idx]
+#                     ppp_level = ppp_df.loc[_, ppp]
+#                 for week in weeks:
+#                     if start_time <= end_time:  # Vanlig skift innenfor samme dag
+#                         mask = (
+#                             (bemanningsplan["Uke"] == week) &
+#                             (bemanningsplan["Dag"] == day) &
+#                             (bemanningsplan["Timer"] >= start_time) &
+#                             (bemanningsplan["Timer"] < end_time)
+#                         )
+#                         bemanningsplan.loc[mask, f"{plan}_AntallAnsatte"] += employees
+#                         if len(ppp_df) > 0:
+#                             bemanningsplan.loc[mask, f"{plan}_PreDef_PPP"] += ppp_level
+
+#                     else:  # Skift som går over til neste dag
+#                         mask_day1 = (
+#                             (bemanningsplan["Uke"] == week) &
+#                             (bemanningsplan["Dag"] == day) &
+#                             (bemanningsplan["Timer"] >= start_time) &
+#                             (bemanningsplan["Timer"] < time(23,59, 59))
+#                         )
+#                         bemanningsplan.loc[mask_day1, f"{plan}_AntallAnsatte"] += employees
+#                         if len(ppp_df) > 0:
+#                             bemanningsplan.loc[mask_day1, f"{plan}_PreDef_PPP"] += ppp_level
+
+#                         # Timer fra midnatt til neste skift
+#                         next_day_idx = (day_idx + 1) % 7  
+#                         next_day = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][next_day_idx]
+#                         mask_day2 = (
+#                             (bemanningsplan["Uke"] == week) &
+#                             (bemanningsplan["Dag"] == next_day) &
+#                             (bemanningsplan["Timer"] >= time(0,0)) &
+#                             (bemanningsplan["Timer"] < end_time)
+#                         )
+#                         bemanningsplan.loc[mask_day2, f"{plan}_AntallAnsatte"] += employees
+#                         if len(ppp_df) > 0:
+#                             bemanningsplan.loc[mask_day2, f"{plan}_PreDef_PPP"] += ppp_level
+
+#     return bemanningsplan
+
+
+
+
+def nightshift_weight(row: pd.Series) -> pd.Series:
+    import math
+    row["Belegg"] = int(math.ceil(row["Belegg"]*(row["DøgnrytmeAktivitet"]/10)))
+    return row
+
+def PPP(row: pd.Series) -> int:
+    import math
+    try:
+        ppp = round(row['Belegg']/row["AntallAnsatte"], 2)
+    except ZeroDivisionError:
+        ppp = row["Belegg"]
+    return ppp
+
+def SkiftIntensitet(row: pd.Series) -> int:
+    try:
+        SI = row['Belegg']/ (row["AntallAnsatte"]*row["PreDef_PPP"])
+    except ZeroDivisionError:
+        SI = 0
+    return SI
+
+def create_quarterly_times_and_update_timer(row):
+    times = []
+    timer_values = []
+    for minute in [0, 15, 30, 45]:
+        new_time = row['DatoTid'].replace(minute=minute, second=0)
+        times.append(new_time)
+        timer_values.append(new_time.time())
+    return list(zip(times, timer_values))
+
+def add_shift_type_quarterly(row):
+    from datetime import datetime
+    morning_start = datetime.strptime("07:15:00", "%H:%M:%S").time()
+    afternoon_start = datetime.strptime("14:45:00", "%H:%M:%S").time()
+    evening_start = datetime.strptime("21:45:00", "%H:%M:%S").time()
+    
+    row_time = row["Timer"]
+
+    # Sammenligning
+    if morning_start < row_time <= afternoon_start:
+        shift_type = "dag"
+    elif afternoon_start < row_time <= evening_start:
+        shift_type = "kveld"
+    else: 
+        shift_type = "natt"
+        
+    return shift_type
+
+def match_and_add_activity(df, row):
+    matching_rows = df[
+        (df['Start'] <= row["Timer"]) & 
+        (row["Timer"] <= df['End'])
+    ]
+    
+    if not matching_rows.empty:
+        return matching_rows.iloc[0]['Aktivitet']
+    else:
+        return None

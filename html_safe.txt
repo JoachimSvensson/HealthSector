@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPMGs Bemanningslanterne</title>
+    <!-- Din egen CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Handsontable CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.css">
+    <!-- Handsontable JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Tabell-funksjonalitet -->
+        <h1>Bemanningsplanleggingsverktøy</h1>
+        <p>Velg planen du vil justere:</p>
+        <select id="sheetSelector">
+            <option value="bemanningsplan">Bemanningsplan</option>
+            <option value="ppp">PPP</option>
+            <option value="døgnrytmetabell">Døgnrytmetabell</option>
+        </select>
+        <div id="hot-container"></div>
+        <!-- <button id="addRowButton">Legg til rad</button> -->
+        <button id="saveChanges">Lagre Endringer</button>
+    </div>
+    <div class="container">
+        <!-- Plot-funksjonalitet -->
+        <h1>Opplevd Pasientintensitet</h1>
+        <div class="controls">
+            <label for="tidsperiode">Tidsperiode:</label>
+            <select id="tidsperiode">
+                <option value="hele perioden">hele perioden</option>
+                <option value="custom">Custom</option>
+            </select>
+            <div id="datoer" style="display: none;">
+                <label for="start-dato">Startdato:</label>
+                <input type="date" id="start-dato">
+                <label for="slutt-dato">Sluttdato:</label>
+                <input type="date" id="slutt-dato">
+            </div>
+
+            <label for="aggregering">Aggregering:</label>
+            <select id="aggregering">
+                <option value="hele perioden">hele perioden</option>
+                <option value="gjennomsnittlig uke">gjennomsnittlig uke</option>
+                <option value="beste uke">beste uke</option>
+                <option value="dårligste uke">dårligste uke</option>
+                <option value="gjennomsnittlig dag">gjennomsnittlig dag</option>
+                <option value="beste dag">beste dag</option>
+                <option value="dårligste dag">dårligste dag</option>
+                <option value="gjennomsnittlig skift">gjennomsnittlig skift</option>
+                <option value="beste skift">beste skift</option>
+                <option value="dårligste skift">dårligste skift</option>
+            </select>
+
+            <label for="visualiseringskolonne">Visualiseringskolonne:</label>
+            <select id="visualiseringskolonne">
+                <option value="SI">SI</option>
+                <option value="Reell_PPP">Reell PPP</option>
+                <option value="PreDef_PPP">Egendefinert PPP</option>
+            </select>
+
+            <label for="skift">Skift:</label>
+            <select id="skift">
+                <option value="alle skift">Alle</option>
+                <option value="dag">Dag</option>
+                <option value="kveld">Kveld</option>
+                <option value="natt">Natt</option>
+            </select>
+
+            <button id="plot-btn">Vis Plot</button>
+        </div>
+        <div id="plot-container">
+            <img id="plot" src="" alt="Plot vil vises her">
+            <div id="table-container"></div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

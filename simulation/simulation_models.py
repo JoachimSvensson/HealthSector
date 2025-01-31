@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-# import random
 
 
 ######################## Monte Carlo Functions ########################
@@ -215,7 +214,7 @@ def monte_carlo_waiting_probability(waiting_probability: float):
 
 
 ######################## Bemanningsnivå og Skiftdesign ########################
-def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: int = 2024, month: list = None, shift_type: str = None, scenario: str = None, curr_sit: int = 12):
+def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_length_of_stay: int, shifts_per_day: int, iterations: int, post: str, weekend: bool = False, predictions: bool = False, year: list = [2024], month: list = None, shift_type: str = None, scenario: str = None, curr_sit: int = 12):
     '''
     Function to perform simulations to simulate the service side and the overstaffed vs understaffed shifts/days.
 
@@ -267,15 +266,17 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
 
     if weekend == True:
         data = data[data["helg"] == 1]
-    else:
+    elif weekend == None:
         data = data[data["helg"] == 0]
+    # else:
+    #     data = data[data["helg"] == 0]
 
     if predictions == True:
         data = data[data["År"] == 2025]
         data["Antall inn på post"] = data["Prediksjoner pasientstrøm"]
         data["Belegg"] = data["Prediksjoner belegg"]
     else:
-        data = data[data["År"] == year]
+        data = data.query(f"År in {year}")
     
     if scenario == "helligdag":
         data["Antall inn på post"] = data["Antall inn på post"] + 15
@@ -294,8 +295,6 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
         data["Antall inn på post"] = data["Antall inn på post"] + 30
         data["Belegg"] = data["Belegg"] + 30
 
-    # if year == 2024:
-    #     data["Antall inn på post"] = data["Antall inn på post"].fillna(data["Prediksjoner pasientstrøm"])
     data = data.reset_index()
     df_index = data.index.values
     df_index = [x +1 for x in df_index]
@@ -306,40 +305,39 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
     overstaffed_shifts = 0
     total_shifts = 0
     staffed_shifts_data = []
-    # avg_demand_pr_hour = sum(data.loc[:,'Antall inn på post'])/len(data)
-    variability_factor = 0.3
-
-    for _ in range(iterations):
-        yearly_understaffed_shifts = 0  # Teller hvor mange skift per år med underbemanning
-        yearly_overstaffed_shifts = 0  # Teller hvor mange skift per år med overbemanning
-        patients_on_ward = []  # Liste for å holde oversikt over pasienter som allerede ligger inne
-        
-        for index, row in data.iterrows(): 
-            arrivals = row["Antall inn på post"]
-            new_admissions = np.random.poisson(arrivals * (1 + variability_factor))  # Simulerer nye pasienter
-            lengths_of_stay = np.random.exponential(avg_length_of_stay, int(new_admissions))  # Simulerer liggetider
-
-            # Legg til nye pasienter som skal legges inn
-            patients_on_ward.extend(lengths_of_stay)
+    avg_demand_pr_hour = sum(data.loc[:,'Antall inn på post'])/len(data)
+    
+    tot_ls_nurses_needed_per_shift = []
+    for years in year:
+        tot_ls_nurses_needed_per_shift_year = []
+        datayear = data[data['År']==years]
+        for _ in range(iterations):
+            yearly_understaffed_shifts = 0  # Teller hvor mange skift per år med underbemanning
+            yearly_overstaffed_shifts = 0  # Teller hvor mange skift per år med overbemanning
+            patients_on_ward = []  # Liste for å holde oversikt over pasienter som allerede ligger inne
             
-            # Oppdater liggetidene for pasienter som allerede er inne
-            patients_on_ward = [stay - 1 for stay in patients_on_ward]  # Reduserer liggetiden med 1 for hver dag
-            patients_on_ward = [stay for stay in patients_on_ward if stay > 0]  # Fjern pasienter som er utskrevet
+            list_nurses_needed_per_shift = []
+            for index, row in datayear.iterrows():
+                arrivals = row["Belegg"]
+                new_admissions = np.random.poisson(arrivals * (1 + avg_demand_pr_hour))  # Simulerer nye pasienter
+                lengths_of_stay = np.random.exponential(avg_length_of_stay, int(new_admissions))  # Simulerer liggetider
 
-            # # Beregn total antall pasienter som trenger pleie i dag
-            # total_patients = len(patients_on_ward)
+                # Legg til nye pasienter som skal legges inn
+                patients_on_ward.extend(lengths_of_stay)
+                
+                # Oppdater liggetidene for pasienter som allerede er inne
+                patients_on_ward = [stay - 1 for stay in patients_on_ward]  # Reduserer liggetiden med 1 for hver dag
+                patients_on_ward = [stay for stay in patients_on_ward if stay > 0]  # Fjern pasienter som er utskrevet
 
-            # Beregn antall sykepleiere som trengs per skift
-            # patients_per_nurse = 3 #hard-kodet, må endres dersom skal brukes
-            # nurses_needed_per_shift = total_patients / patients_per_nurse / shifts_per_day
-            opt_num_nurses = row.staff_needed
-            nurses_needed_per_shift = np.random.poisson(opt_num_nurses * (1 + variability_factor))
+                # Needed
+                if shift_type == "natt":
+                    PPP = 6
+                else:
+                    PPP = 3
+                nurses_needed_per_shift = 0.8*(new_admissions/PPP)
+                list_nurses_needed_per_shift.append(nurses_needed_per_shift)
+                actual_nurses = curr_sit              
 
-            actual_nurses = curr_sit              
-
-
-            # Simuler skiftene for dagen
-            for shift in range(shifts_per_day):
                 total_shifts += 1  # Oppdater totalt antall skift
                 if nurses_needed_per_shift > actual_nurses:
                     understaffed_shifts += 1  # Underbemanning i dette skiftet
@@ -348,9 +346,14 @@ def over_under_staffed_shifts(data: pd.DataFrame, staff_needed: pd.Series, avg_l
                     overstaffed_shifts += 1
                     yearly_overstaffed_shifts += 1
                 staffed_shifts_data.append(nurses_needed_per_shift)
-    return understaffed_shifts, overstaffed_shifts, total_shifts, staffed_shifts_data
 
-def under_over_staffing_plot(staffed_shifts_data, iterations, shifts_per_day):
+            tot_ls_nurses_needed_per_shift_year.append(list_nurses_needed_per_shift)        
+        temp_avg_nurses = [int(sum(x) / len(x)) for x in zip(*tot_ls_nurses_needed_per_shift_year)]
+        tot_ls_nurses_needed_per_shift.append(temp_avg_nurses)
+    snitt_nurses = [int(sum(x) / len(x)) for x in zip(*tot_ls_nurses_needed_per_shift)]
+    return snitt_nurses, data
+
+def under_over_staffing_plot(sim_avg_nurses, iterations, shifts_per_day):
     '''
     Function to visualize the understaffed vs overstaffed simulated shifts.
 
@@ -362,21 +365,21 @@ def under_over_staffing_plot(staffed_shifts_data, iterations, shifts_per_day):
     output: returns a plot of the simulation results. 
     '''
     # Forbered data for visualisering
-    max_nurses_needed = int(max(staffed_shifts_data)) + 1  # Finn maksimum nødvendig sykepleiere
+    max_nurses_needed = int(max(sim_avg_nurses)) + 1  # Finn maksimum nødvendig sykepleiere
     shift_counts = [0] * max_nurses_needed  # Liste for å telle antall skift for hver sykepleier
-    for nurses_needed in staffed_shifts_data:
+    for nurses_needed in sim_avg_nurses:
         shift_counts[int(nurses_needed)] += 1
 
-    # Konverter til gjennomsnitt over alle simuleringer
-    average_shifts_needed = [count / iterations for count in shift_counts]
+    # # Konverter til gjennomsnitt over alle simuleringer
+    # average_shifts_needed = [count / iterations for count in shift_counts]
 
     # Visualisering av gjennomsnittlig bemanningsbehov
-    plt.bar(range(max_nurses_needed), average_shifts_needed, color='orange')
+    plt.bar(range(max_nurses_needed), shift_counts, color='orange')
     plt.xlabel('Antall sykepleiere nødvendig per time')
     plt.ylabel('Gjennomsnittlig antall timer over tidsperioden')
     plt.title('Gjennomsnittlig antall timer per bemanningsbehov over tidsperioden')
     plt.xticks(range(0, max_nurses_needed, 1))  # Vis alle unike verdier på x-aksen
-    plt.ylim(0, 365 * shifts_per_day)  # Sett y-aksen opp til maksimalt antall skift i året
+    plt.ylim(0, 365 * 3)  # Sett y-aksen opp til maksimalt antall timer i året
     plt.grid(axis='y')
     plt.show()
 
