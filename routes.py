@@ -9,7 +9,9 @@ from simulation.simulation_models import *
 from optimization.optimization import *
 import itertools
 from datetime import time, timedelta
+import sqlite3
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
@@ -41,24 +43,48 @@ def register_routes(app,db):
     # fin_data_hourly = pd.concat([fin_data_hourly_med, fin_data_hourly_kir, next_year], axis=0).sort_values("DatoTid").reset_index()
     # fin_data_hourly.drop(["index"], axis=1, inplace=True)
 
+    database_path = './instance/bemanningslanternenDB.db'
+    conn = sqlite3.connect(database_path)
 
-
-    fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
+    sykehus_query = "SELECT * FROM sykehusdata"
+    bemanningsplan_query = "SELECT * FROM bemanningsplan"
+    ppp_query = "SELECT * FROM ppp"
+    døgnrytmeplan_query = "SELECT * FROM døgnrytmeplan"
+    
+    fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
+    # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
     fin_med_24 = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["post"] == "medisinsk")]
     test = fin_med_24.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]
-    excel_file = "test_data.xlsx"
+
+    # excel_file = "test_data.xlsx"
     # df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan', engine='openpyxl')
-    bemanningsplan_df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan (2)', engine='openpyxl')
+    # bemanningsplan_df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan (2)', engine='openpyxl')
     # df = df[df["Aktivering"] == "Aktiv"]
+    bemanningsplan_df = pd.read_sql_query(bemanningsplan_query, conn)
     bemanningsplan_df = bemanningsplan_df[bemanningsplan_df["Navn"] != "Inaktiv"]
-    ppp_df = pd.read_excel(excel_file, sheet_name= 'ppp', engine='openpyxl')
-    ppp_df = ppp_df[ppp_df["Aktivering"] == "Aktiv"]
-    døgnrytme_df = pd.read_excel(excel_file, sheet_name='døgnrytmetabell', engine='openpyxl')
+
+    # ppp_df = pd.read_excel(excel_file, sheet_name= 'ppp', engine='openpyxl')
+    # ppp_df = ppp_df[ppp_df["Aktivering"] == "Aktiv"]
+    ppp_df = pd.read_sql_query(ppp_query, conn)
+    ppp_df = ppp_df[ppp_df["Navn"] != "Inaktiv"]
+    # døgnrytme_df = pd.read_excel(excel_file, sheet_name='døgnrytmetabell', engine='openpyxl')
+    døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
+
+    conn.close()
+
+
+    bemanningsplan_df['Start'] = bemanningsplan_df['Start'].apply(remove_microseconds)
+    bemanningsplan_df['End'] = bemanningsplan_df['End'].apply(remove_microseconds)
+
+    ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
+    ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
+    
+    døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
+    døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
 
 
 
-
-    days_list = bemanningsplan_df.columns[2:-2].tolist()
+    days_list = bemanningsplan_df.columns[3:-2].tolist()
     week_num = []
 
     for week in bemanningsplan_df.Week:
@@ -97,9 +123,8 @@ def register_routes(app,db):
     df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
     df_full = df_full.apply(nightshift_weight, axis=1)
 
-
-    sheets = pd.read_excel(excel_file, sheet_name= ['bemanningsplan (2)', 'ppp', 'døgnrytmetabell'], engine='openpyxl')
-    bemanningsplaner = bemanningsplan_df.Navn.unique().tolist()
+    # excel_file = "test_data.xlsx"
+    # sheets = pd.read_excel(excel_file, sheet_name= ['bemanningsplan (2)', 'ppp', 'døgnrytmetabell'], engine='openpyxl')
 
 
     @app.route('/')
@@ -107,17 +132,28 @@ def register_routes(app,db):
         return render_template('index.html')
 
 
+    @app.route('/faq')
+    def faq():
+        # FAQ-siden
+        return render_template('faq.html')
+
+
 
     @app.route('/api/get_table', methods=['POST'])
     def get_table():
         params = request.json
-        sheet_name = params.get('sheet_name', 'bemanningsplan (2)')
-        nonlocal sheets
-        df = sheets.get(sheet_name)
+        sheet_name = params.get('sheet_name', 'bemanningsplan')
+        # nonlocal sheets
+        # df = sheets.get(sheet_name)
+        database_path = './instance/bemanningslanternenDB.db'
+        conn = sqlite3.connect(database_path)
+        query = f"SELECT * FROM {sheet_name}"
+        df = pd.read_sql_query(query, conn)
         df_copy = df.copy(deep=True)
+        conn.close()
         if df_copy is not None:
-            df_copy['Start'] = df_copy['Start'].apply(lambda x: x.strftime('%H:%M:%S'))
-            df_copy['End'] = df_copy['End'].apply(lambda x: x.strftime('%H:%M:%S'))
+            # df_copy['Start'] = df_copy['Start'].apply(lambda x: x.strftime('%H:%M:%S'))
+            # df_copy['End'] = df_copy['End'].apply(lambda x: x.strftime('%H:%M:%S'))
             table_data = {
                 'headers': df_copy.columns.tolist(),  
                 'data': df_copy.values.tolist() 
@@ -127,27 +163,53 @@ def register_routes(app,db):
             return jsonify({'error': 'Invalid sheet name'}), 400
 
 
-    # @app.route('/update_table', methods=['POST'])
-    # def update_table():
-    #     data = request.json
-    #     sheet_name = data.get('sheet', 'bemanningsplan')
-    #     rows = data.get('rows')
+    @app.route('/update_table', methods=['POST'])
+    def update_table():
+        data = request.json
+        sheet_name = data.get('sheet', 'bemanningsplan') 
+        rows = data.get('rows', []) 
+        if not rows:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
 
-    #     if sheet_name not in sheets:
-    #         return jsonify({'error': 'Invalid sheet name'}), 400
+        table_class = None
+        if sheet_name == "bemanningsplan":
+            table_class = Bemanningsplan
+        elif sheet_name == "ppp":
+            table_class = PPP
+        elif sheet_name == "døgnrytmeplan":
+            table_class = Døgnrytmetabell
+        else:
+            return jsonify({'success': False, 'message': 'Invalid table name'}), 400
+        
+        db.session.query(table_class).delete()
 
-    #     df = pd.DataFrame(rows)
-    #     sheets[sheet_name] = df
+        for row in rows:
+            new_entry = table_class(**row) 
+            db.session.add(new_entry)
 
-    #     with pd.ExcelWriter(excel_file, mode='w') as writer:
-    #         for name, sheet_df in sheets.items():
-    #             sheet_df.to_excel(writer, sheet_name=name, index=False)
-    #     return jsonify({'success': True})
+        db.session.flush()
+        db.session.commit()
+
+
+        nonlocal bemanningsplan, df_quarterly
+        bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
+        lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
+        )
+
+        df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+        df_full = df_full.apply(nightshift_weight, axis=1)
+
+        return jsonify({'success': True})
+
 
 
     @app.route('/api/get_dropdown_values', methods = ["POST"])
     def get_dropdown_values():
-        nonlocal bemanningsplaner
+        database_path = './instance/bemanningslanternenDB.db'
+        conn = sqlite3.connect(database_path)
+        query = f"SELECT * FROM bemanningsplan"
+        df = pd.read_sql_query(query, conn)
+        bemanningsplaner = df.Navn.unique().tolist()
         return jsonify({'plan': bemanningsplaner})
 
 
@@ -165,7 +227,7 @@ def register_routes(app,db):
         plan = params.get('plan', "Grunnplan")
         
 
-        nonlocal df_full, bemanningsplan_df, ppp_df
+        # nonlocal df_full, bemanningsplan_df, ppp_df
         
         uten_ansatte = df_full.copy(deep=True)
         pasient_per_pleier  = ppp_df.copy(deep=True)

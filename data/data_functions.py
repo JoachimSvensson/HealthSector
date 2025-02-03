@@ -506,7 +506,7 @@ def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
         for day_idx, day in enumerate(days_of_week):
             employees = row[day]
             if len(ppp_df) > 0:
-                ppp = ppp_df.columns[2:-2][day_idx]
+                ppp = ppp_df.columns[3:-2][day_idx]
                 ppp_level = ppp_df.loc[index, ppp]
 
             mask = (bemanningsplan["Dag"] == day) & (bemanningsplan["Uke"].isin(weeks))
@@ -637,13 +637,37 @@ def add_shift_type_quarterly(row):
         
     return shift_type
 
-def match_and_add_activity(df, row):
-    matching_rows = df[
-        (df['Start'] <= row["Timer"]) & 
-        (row["Timer"] <= df['End'])
-    ]
+# def match_and_add_activity(df, row):
+#     # row["Timer"] = str(row["Timer"])
+#     # df['End'] = df['End'].astype(str)
+#     matching_rows = df[
+#         (df['Start'] <= row["Timer"]) & 
+#         (row["Timer"] <= df['End'])
+#     ]
     
+#     if not matching_rows.empty:
+#         return matching_rows.iloc[0]['Aktivitet']
+#     else:
+#         return None
+    
+
+def match_and_add_activity(df, row):
+    import numpy as np
+    start_times = df['Start'].values
+    end_times = df['End'].values
+    timer = row["Timer"]
+
+    matching_condition = (start_times <= timer) & (timer <= end_times)
+    matching_rows = df[matching_condition]
+
     if not matching_rows.empty:
         return matching_rows.iloc[0]['Aktivitet']
-    else:
-        return None
+    return None
+
+
+
+
+def remove_microseconds(time_str):
+    from datetime import datetime
+    time_obj = datetime.strptime(time_str, '%H:%M:%S.%f').time()
+    return time_obj # .strftime('%H:%M:%S')

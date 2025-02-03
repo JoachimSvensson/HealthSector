@@ -3,7 +3,7 @@ from app import db
 class Bemanningsplan(db.Model):
     __tablename__ = 'bemanningsplan'
 
-    bid = db.Column(db.Integer, primary_key=True)
+    bid = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Start = db.Column(db.String, nullable=False)
     End = db.Column(db.String, nullable=False)
     Monday = db.Column(db.Integer, nullable=False)
@@ -23,7 +23,7 @@ class Bemanningsplan(db.Model):
 class PPP(db.Model):
     __tablename__ = 'ppp'
     
-    pppid = db.Column(db.Integer, primary_key=True)
+    pppid = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Start = db.Column(db.String, nullable=False)
     End = db.Column(db.String, nullable=False)
     ppp_mon = db.Column(db.Integer, nullable=False)
@@ -42,7 +42,7 @@ class PPP(db.Model):
 
 class Døgnrytmetabell(db.Model):
     __tablename__ = 'døgnrytmeplan'
-    did = db.Column(db.Integer, primary_key=True)
+    did = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Start = db.Column(db.String, nullable=False)
     End = db.Column(db.String, nullable=False)
     Aktivitet = db.Column(db.Integer, nullable=False)
@@ -50,5 +50,27 @@ class Døgnrytmetabell(db.Model):
     def __repr__(self):
         return f"døgnrytmeaktivitet er oppdatert og registrert for de ulike tidspunktene av døgnet"
     
+
+
+class SykehusData(db.Model):
+    __tablename__ = 'sykehusdata'
+    sid = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    År = db.Column(db.Integer, nullable=False)
+    Måned = db.Column(db.String, nullable=False)
+    Uke = db.Column(db.Integer, nullable=False)
+    Dag = db.Column(db.String, nullable=False)
+    DatoTid = db.Column(db.String, nullable=False) # evt bytte til DateTime, men da også endre i datalasten
+    Timer = db.Column(db.Integer, nullable=False)
+    post = db.Column(db.String, nullable=False)
+    helg = db.Column(db.Integer, nullable=False)
+    Antall_inn_på_post = db.Column(db.Float, nullable=True)
+    Antall_pasienter_ut_av_Post = db.Column(db.Float, nullable=True)
+    skift_type = db.Column(db.String, nullable=False)
+    Belegg = db.Column(db.Float, nullable=True)
+    Prediksjoner_pasientstrøm = db.Column(db.Float, nullable=True)
+    Prediksjoner_belegg = db.Column(db.Float, nullable=True)
+
+    def __repr__(self):
+        return f'sykehusdata er oppdatert og registrert i databasen'
 
     

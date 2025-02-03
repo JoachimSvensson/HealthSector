@@ -14,12 +14,12 @@
         <h1>Bemanningsplanleggingsverktøy</h1>
         <p>Velg planen du vil justere:</p>
         <select id="sheetSelector">
-            <option value="bemanningsplan (2)">Bemanningsplan</option>
+            <option value="bemanningsplan">Bemanningsplan</option>
             <option value="ppp">PPP</option>
-            <option value="døgnrytmetabell">Døgnrytmetabell</option>
+            <option value="døgnrytmeplan">Døgnrytmetabell</option>
         </select>
         <div id="hot-container"></div>
-        <!-- <button id="addRowButton">Legg til rad</button> -->
+        <button id="addRowButton">Legg til rad</button>
         <button id="saveChanges">Lagre Endringer</button>
     </div>
 
@@ -146,6 +146,12 @@
             </div>
         </div>
     </div>
+    <section class="faq-text-container">
+        <p class="faq-text">
+            Velkommen til vår FAQ-seksjon! Her finner du svar på de vanligste spørsmålene om tjenesten vår. Hvis du ikke finner svaret du leter etter, kan du gjerne kontakte oss.
+        </p>
+        <a href="{{ url_for('faq') }}" class="go-to-faq">Les våre FAQ</a>
+    </section>
 
     <script src="/static/script.js"></script>
 </body>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ</title>
+    <!-- Legg til CSS-stilen her -->
+    <link rel="stylesheet" href="/static/style_faq.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ofte stilte spørsmål (FAQ)</h1>
+        </header>
+
+        <section class="faq-section">
+            <div class="faq-item">
+                <h2 class="question">Hva er PPP?</h2>
+                <p class="answer">Pasient per personal, PPP, er hvor mange pasienter av gjennomsnittlig pleietyngde kan ett medlem av personalet ventes å ta seg av med akseptabel kvalitet? Det må defineres hvilken gruppe av personalet vi ser på fra analyse til analyse.</p>
+            </div>
+
+            <div class="faq-item">
+                <h2 class="question">Hva er Skiftintensitet?</h2>
+                <p class="answer">Hvor stor andel av tiden personalet er på jobb kan man forvente at den ansatte yter helsetjenester i tråd med belastningen som følger av etablert PasPer? Verdien vil typisk være noe mindre enn 100%, slik at det er rom for å ta seg noen pauser i løpet av arbeidsdagen. Dersom bemanningsbehovet plutselig øker, eksempelvis ved at flere nye pasienter plutselig legges inn samtidig, må helsearbeidere prioritere sitt arbeid strengere enn det PasPer og maksimal skiftintensitet tilsier for å ivareta pasientene sine på en best mulig måte. Muligheten for at dette kan skje vil aldri forsvinne uavhengig av bemanningsnivå, fordi man aldri vet hvor mange pasienter som kan ankomme et sykehus den neste timen, men ved å ta stilling til hvor ofte man kan akseptere slik underbemanning kan en vite hva som er et egnet bemanningsnivå.</p>
+            </div>
+
+            <div class="faq-item">
+                <h2 class="question">Hva er de forskjellige tallene i Døgnrytmetabellen?</h2>
+                <p class="answer">Ettersom veldig få timer har lik tyngde for ansatte ifm. hvor stor innsats som kreves for å møte pasienters behov er det naturlig å legge inn en tyngdefaktor på hvor stor pågangen er per time gjennom døgnet. Det er naturlig å tenke at det er mer å gjøre på jobb for en sykepleier kl. 13.00 enn kl. 03.00. Dette er noe som må gjenspeiles i PPP og Skiftintensiteten og dermed har vi gjort det mulig for brukeren av verktøyet å selv sette en slik tyngdefaktor time for time gjennom døgnet slik de opplever dagen.</p>
+            </div>
+            
+        </section>
+
+        <footer>
+            <a href="{{ url_for('index') }}" class="back-link">Tilbake til hovedsiden</a>
+        </footer>
+    </div>
+</body>
+</html>

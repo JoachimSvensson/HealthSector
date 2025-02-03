@@ -191,3 +191,49 @@ table tr:hover {
         padding: 6px;
     }
 }
+
+
+
+.faq-text-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    height: 150px; 
+}
+
+.faq-text {
+    font-size: 1.25rem;
+    color: #e0ecf8;
+    line-height: 1.6;
+    max-width: 800px;
+    margin-bottom: 20px;
+}
+
+.go-to-faq {
+    font-size: 1.125rem;
+    color: #c3e1f5;
+    text-decoration: none;
+    margin-top: 5px;
+    margin-bottom: 20px;
+}
+
+.go-to-faq:hover {
+    text-decoration: underline;
+}
+
+/* Responsivitet */
+@media screen and (max-width: 768px) {
+    h1 {
+        font-size: 2rem;
+    }
+
+    .faq-text {
+        font-size: 1.125rem;
+    }
+
+    .go-to-faq {
+        font-size: 1rem;
+    }
+}
