@@ -151,7 +151,7 @@ def register_routes(app,db):
 
         conn.close()
 
-        sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["post"] == post)]
+        sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["sykehus"] == sykehus) & (fin_data_hourly["post"] == post)]
         sykehusdata_final = sykehusdata_valg.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]       
 
 
