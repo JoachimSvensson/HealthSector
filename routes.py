@@ -190,14 +190,22 @@ def register_routes(app,db):
         db.session.flush()
         db.session.commit()
 
+        if sheet_name == "døgnrytmeplan":
+            nonlocal bemanningsplan, df_quarterly, df_full
+            conn = sqlite3.connect(database_path)
+            døgnrytmeplan_query = f"SELECT * FROM døgnrytmeplan"
+            døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
+            conn.close()
 
-        nonlocal bemanningsplan, df_quarterly
-        bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
-        lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
-        )
+            døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
+            døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
 
-        df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
-        df_full = df_full.apply(nightshift_weight, axis=1)
+            bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
+            lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
+            )
+
+            df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+            df_full = df_full.apply(nightshift_weight, axis=1)
 
         return jsonify({'success': True})
 
@@ -209,6 +217,7 @@ def register_routes(app,db):
         conn = sqlite3.connect(database_path)
         query = f"SELECT * FROM bemanningsplan"
         df = pd.read_sql_query(query, conn)
+        conn.close()
         bemanningsplaner = df.Navn.unique().tolist()
         return jsonify({'plan': bemanningsplaner})
 
@@ -226,9 +235,26 @@ def register_routes(app,db):
         end = params.get('slutt_dato', None)
         plan = params.get('plan', "Grunnplan")
         
-
-        # nonlocal df_full, bemanningsplan_df, ppp_df
+        conn = sqlite3.connect(database_path)
+        bemanningsplan_query = "SELECT * FROM bemanningsplan"
+        ppp_query = "SELECT * FROM ppp"
         
+        bemanningsplan_df = pd.read_sql_query(bemanningsplan_query, conn)
+        bemanningsplan_df = bemanningsplan_df[bemanningsplan_df["Navn"] != "Inaktiv"]
+
+        ppp_df = pd.read_sql_query(ppp_query, conn)
+        ppp_df = ppp_df[ppp_df["Navn"] != "Inaktiv"]
+
+        conn.close()
+
+
+        bemanningsplan_df['Start'] = bemanningsplan_df['Start'].apply(remove_microseconds)
+        bemanningsplan_df['End'] = bemanningsplan_df['End'].apply(remove_microseconds)
+
+        ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
+        ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
+
+
         uten_ansatte = df_full.copy(deep=True)
         pasient_per_pleier  = ppp_df.copy(deep=True)
         bemanning = bemanningsplan_df.copy(deep=True)
