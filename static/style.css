@@ -237,3 +237,27 @@ table tr:hover {
         font-size: 1rem;
     }
 }
+
+
+.button-container {
+    display: flex;
+    justify-content: center; 
+    margin-top: 20px; 
+}
+
+.small-button-link {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    border-radius: 4px;
+    background-color: #6c757d; 
+    color: white;
+    text-decoration: none;
+    border: 1px solid #5a6268;
+    text-align: center;
+    transition: background-color 0.2s, border 0.2s;
+}
+
+.small-button-link:hover {
+    background-color: #5a6268;
+    border-color: #494f54;
+}

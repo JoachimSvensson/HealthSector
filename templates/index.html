@@ -13,8 +13,12 @@
 <body>
     <div class="container">
         <h1>Bemanningsplanleggingsverktøy</h1>
-        <p>Velg planen du vil justere:</p>
+        <div class="button-container">
+            <a href="{{ url_for('index') }}" class="small-button-link">Velg annet sykehus eller avdeling</a>
+        </div>
+        <p>Velg faktoren du vil justere:</p>
         <select id="sheetSelector">
+            <option value="" disabled selected>Velg faktor</option>
             <option value="bemanningsplan">Bemanningsplan</option>
             <option value="ppp">PPP</option>
             <option value="døgnrytmeplan">Døgnrytmetabell</option>
@@ -31,6 +35,7 @@
             <div class="controls">
                 <label for="tidsperiode-1">Tidsperiode:</label>
                 <select id="tidsperiode-1">
+                    <option value="" disabled selected>Velg tidsperiode</option>
                     <option value="hele perioden">hele perioden</option>
                     <option value="custom">Custom</option>
                 </select>
@@ -43,6 +48,7 @@
 
                 <label for="aggregering-1">Aggregering:</label>
                 <select id="aggregering-1">
+                    <option value="" disabled selected>Velg aggregering</option>
                     <option value="hele perioden">hele perioden</option>
                     <option value="gjennomsnittlig uke">gjennomsnittlig uke</option>
                     <option value="beste uke">beste uke</option>
@@ -57,6 +63,7 @@
 
                 <label for="visualiseringskolonne-1">Visualiseringskolonne:</label>
                 <select id="visualiseringskolonne-1">
+                    <option value="" disabled selected>Velg visualiseringsfaktor</option>
                     <option value="SI">SI</option>
                     <option value="Reell_PPP">Reell PPP</option>
                     <option value="PreDef_PPP">Egendefinert PPP</option>
@@ -64,6 +71,7 @@
 
                 <label for="skift-1">Skift:</label>
                 <select id="skift-1">
+                    <option value="" disabled selected>Velg skifttype</option>
                     <option value="alle skift">Alle</option>
                     <option value="dag">Dag</option>
                     <option value="kveld">Kveld</option>
@@ -91,6 +99,7 @@
             <div class="controls">
                 <label for="tidsperiode-2">Tidsperiode:</label>
                 <select id="tidsperiode-2">
+                    <option value="" disabled selected>Velg tidsperiode</option>
                     <option value="hele perioden">hele perioden</option>
                     <option value="custom">Custom</option>
                 </select>
@@ -103,6 +112,7 @@
 
                 <label for="aggregering-2">Aggregering:</label>
                 <select id="aggregering-2">
+                    <option value="" disabled selected>Velg aggregering</option>
                     <option value="hele perioden">hele perioden</option>
                     <option value="gjennomsnittlig uke">gjennomsnittlig uke</option>
                     <option value="beste uke">beste uke</option>
@@ -117,6 +127,7 @@
 
                 <label for="visualiseringskolonne-2">Visualiseringskolonne:</label>
                 <select id="visualiseringskolonne-2">
+                    <option value="" disabled selected>Velg visualiseringsfaktor</option>
                     <option value="SI">SI</option>
                     <option value="Reell_PPP">Reell PPP</option>
                     <option value="PreDef_PPP">Egendefinert PPP</option>
@@ -124,6 +135,7 @@
 
                 <label for="skift-2">Skift:</label>
                 <select id="skift-2">
+                    <option value="" disabled selected>Velg skifttype</option>
                     <option value="alle skift">Alle</option>
                     <option value="dag">Dag</option>
                     <option value="kveld">Kveld</option>

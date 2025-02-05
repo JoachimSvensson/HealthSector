@@ -272,10 +272,14 @@ def create_hourly_obt(dfs_dict:dict)-> pd.DataFrame:
             dataframe.rename(columns={"Måned-1":"Måned", "Timer (0-23)":"Timer"}, inplace=True, errors="raise") 
         except:
             pass
-        if df[:3] == "med":
-            dataframe["post"] = "medisinsk"
-        else:
-            dataframe["post"] = "kirurgisk"
+        idx_post = df.find("_")
+        dataframe["post"] = df[:idx_post]
+        # if df[:3] == "med":
+        #     dataframe["post"] = "medisinsk"
+        # else:
+        #     dataframe["post"] = "kirurgisk"
+        idx_sykehus = df.rfind("_")
+        dataframe["sykehus"] = df[idx_sykehus+1:]
         df_list.append(dataframe)
 
     obt_df = pd.concat(df_list, axis=0, ignore_index=True)
@@ -287,7 +291,7 @@ def create_hourly_obt(dfs_dict:dict)-> pd.DataFrame:
     obt_df["Timer"] = obt_df["Timer"].astype(int) 
     obt_df['DatoTid'] = obt_df['Dato'] + pd.to_timedelta(obt_df['Timer'], unit='h')
 
-    obt_df = obt_df[["År", "Måned", "Uke", "Dag", "DatoTid", "Timer", "post", "helg", "Antall inn på post", "Antall pasienter ut av Post"]]
+    obt_df = obt_df[["År", "Måned", "Uke", "Dag", "DatoTid", "Timer", "sykehus", "post", "helg", "Antall inn på post", "Antall pasienter ut av Post"]]
     obt_df = obt_df.sort_values(by=["DatoTid"]).reset_index()
     obt_df.drop(["index"], axis=1, inplace=True)
     return obt_df

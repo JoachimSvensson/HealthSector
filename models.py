@@ -61,6 +61,7 @@ class SykehusData(db.Model):
     Dag = db.Column(db.String, nullable=False)
     DatoTid = db.Column(db.String, nullable=False) # evt bytte til DateTime, men da også endre i datalasten
     Timer = db.Column(db.Integer, nullable=False)
+    sykehus = db.Column(db.String, nullable=True)
     post = db.Column(db.String, nullable=False)
     helg = db.Column(db.Integer, nullable=False)
     Antall_inn_på_post = db.Column(db.Float, nullable=True)

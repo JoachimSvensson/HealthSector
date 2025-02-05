@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sykehusvalg</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="/static/style_dep_choice.css">
+</head>
+<body>
+
+    <h1>Velkommen til KPMGs Bemanningslanterne!</h1>
+    <h2>Velg ditt sykehus og avdeling</h2>
+
+    <div class="dropdown-container">
+        <select id="sykehus">
+            <option value="" disabled selected>Velg sykehus</option>
+            <option value="hammerfest">Hammerfest sykehus</option>
+            <option value="kirkenes">Kirkenes sykehus</option>
+            <option value="alta">Alta sykehus</option>
+            <option value="lakselv">Lakselv sykehus</option>
+            <option value="vadsø">Vadsø sykehus</option>
+            <option value="karasjok">Karasjok sykehus</option>
+            <option value="tana">Tana sykehus</option>
+        </select>
+
+    
+        <select id="post">
+            <option value="" disabled selected>Velg post</option>
+            <option value="medisinsk">Medisinsk</option>
+            <option value="kirurgisk">Kirurgisk</option>
+        </select>
+    </div>
+
+
+    <div class="button-container">
+        <button id="lagre">Lagre valg</button>
+        <a href="{{ url_for('main') }}" class="button-link">Start å bruke!</a>
+    </div>
+
+    <script src="/static/choice_script.js"></script>
+</body>
+</html>

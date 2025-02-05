@@ -46,15 +46,15 @@ def register_routes(app,db):
     database_path = './instance/bemanningslanternenDB.db'
     conn = sqlite3.connect(database_path)
 
-    sykehus_query = "SELECT * FROM sykehusdata"
+    # sykehus_query = "SELECT * FROM sykehusdata"
     bemanningsplan_query = "SELECT * FROM bemanningsplan"
     ppp_query = "SELECT * FROM ppp"
     døgnrytmeplan_query = "SELECT * FROM døgnrytmeplan"
     
-    fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
-    # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
-    fin_med_24 = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["post"] == "medisinsk")]
-    test = fin_med_24.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]
+    # fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
+    # # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
+    # fin_med_24 = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["post"] == "medisinsk")]
+    # test = fin_med_24.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]
 
     # excel_file = "test_data.xlsx"
     # df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan', engine='openpyxl')
@@ -105,31 +105,85 @@ def register_routes(app,db):
     )
 
 
-    test = test[test.Uke.isin(dataset_weeks)]
-    test['DatoTid'] = pd.to_datetime(test['DatoTid'])
+    # test = test[test.Uke.isin(dataset_weeks)]
+    # test['DatoTid'] = pd.to_datetime(test['DatoTid'])
 
 
-    new_rows = []
-    for _, row in test.iterrows():
-        quarterly_times_and_timers = create_quarterly_times_and_update_timer(row)
-        for time, timer in quarterly_times_and_timers:
-            new_row = row.copy()
-            new_row['DatoTid'] = time
-            new_row['Timer'] = timer
-            new_rows.append(new_row)
+    # new_rows = []
+    # for _, row in test.iterrows():
+    #     quarterly_times_and_timers = create_quarterly_times_and_update_timer(row)
+    #     for time, timer in quarterly_times_and_timers:
+    #         new_row = row.copy()
+    #         new_row['DatoTid'] = time
+    #         new_row['Timer'] = timer
+    #         new_rows.append(new_row)
 
-    df_quarterly = pd.DataFrame(new_rows)
-    df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
-    df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
-    df_full = df_full.apply(nightshift_weight, axis=1)
+    # df_quarterly = pd.DataFrame(new_rows)
+    # df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
+    # df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+    # df_full = df_full.apply(nightshift_weight, axis=1)
 
     # excel_file = "test_data.xlsx"
     # sheets = pd.read_excel(excel_file, sheet_name= ['bemanningsplan (2)', 'ppp', 'døgnrytmetabell'], engine='openpyxl')
 
 
+    df_quarterly = None
+    df_full = None
+
+
     @app.route('/')
     def index():
+        return render_template('choose_department.html')
+
+
+    @app.route('/api/go_to_main', methods=["POST"])
+    def go_to_main():
+        params = request.json
+        sykehus = params.get('sykehus')
+        post = params.get('post')
+
+        nonlocal df_quarterly, df_full
+        database_path = './instance/bemanningslanternenDB.db'
+        conn = sqlite3.connect(database_path)
+        
+        sykehus_query = "SELECT * FROM sykehusdata"
+        fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
+
+        conn.close()
+
+        sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["sykehus"] == sykehus) & (fin_data_hourly["post"] == post)]
+        sykehusdata_final = sykehusdata_valg.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]       
+
+
+        sykehusdata_final = sykehusdata_final[sykehusdata_final.Uke.isin(dataset_weeks)]
+        sykehusdata_final['DatoTid'] = pd.to_datetime(sykehusdata_final['DatoTid'])
+
+
+        new_rows = []
+        for _, row in sykehusdata_final.iterrows():
+            quarterly_times_and_timers = create_quarterly_times_and_update_timer(row)
+            for time, timer in quarterly_times_and_timers:
+                new_row = row.copy()
+                new_row['DatoTid'] = time
+                new_row['Timer'] = timer
+                new_rows.append(new_row)
+
+        df_quarterly = pd.DataFrame(new_rows)
+        df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
+        df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+        df_full = df_full.apply(nightshift_weight, axis=1)
+
+        if df_full.empty or df_full is None:
+            return jsonify({'success': False, 'message': 'Something went wrong, necessary table is created'}), 400
+        else:
+            return jsonify({'success': True})
+
+    
+    @app.route('/main')
+    def main():
+        # FAQ-siden
         return render_template('index.html')
+
 
 
     @app.route('/faq')
