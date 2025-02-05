@@ -13,6 +13,9 @@
 <body>
     <div class="container">
         <h1>Bemanningsplanleggingsverktøy</h1>
+        <div class="button-container">
+            <a href="{{ url_for('index') }}" class="small-button-link">Velg annet sykehus eller avdeling</a>
+        </div>
         <p>Velg planen du vil justere:</p>
         <select id="sheetSelector">
             <option value="bemanningsplan">Bemanningsplan</option>
