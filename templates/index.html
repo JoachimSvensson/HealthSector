@@ -14,7 +14,7 @@
     <div class="container">
         <h1>Bemanningsplanleggingsverktøy</h1>
         <div class="button-container">
-            <a href="{{ url_for('index') }}" class="small-button-link">Velg annet sykehus eller avdeling</a>
+            <a href="{{ url_for('index') }}" class="small-button-link">Velg annet sykehus eller post</a>
         </div>
         <p>Velg faktoren du vil justere:</p>
         <select id="sheetSelector">
@@ -65,7 +65,7 @@
                 <select id="visualiseringskolonne-1">
                     <option value="" disabled selected>Velg visualiseringsfaktor</option>
                     <option value="SI">SI</option>
-                    <option value="Reell_PPP">Reell PPP</option>
+                    <option value="Reell_PPP">Vektet PPP</option>
                     <option value="PreDef_PPP">Egendefinert PPP</option>
                 </select>
 
@@ -129,7 +129,7 @@
                 <select id="visualiseringskolonne-2">
                     <option value="" disabled selected>Velg visualiseringsfaktor</option>
                     <option value="SI">SI</option>
-                    <option value="Reell_PPP">Reell PPP</option>
+                    <option value="Reell_PPP">Vektet PPP</option>
                     <option value="PreDef_PPP">Egendefinert PPP</option>
                 </select>
 
