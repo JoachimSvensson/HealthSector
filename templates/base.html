@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> {% block title %}Default Value{% endblock  %} </title>
+    <link rel="stylesheet" href="/static/base_style.css">
+    {% block styles %}{% endblock %} 
+    {% block script %}{% endblock %} 
+</head>
+<body>
+    <div class="navbar">
+        <a href="{{ url_for('index') }}">Sykehusvalg</a>
+        <a href="{{ url_for('main') }}">Bemanningsplanleggeren</a>
+        <a href="{{ url_for('recalculate_hospital_data') }}">Last opp sykehusdata</a>
+        <a href="{{ url_for('faq') }}">FAQ</a>
+        <!-- Legg til flere linker etter behov -->
+    </div>
+    {% block content %}{% endblock  %}
+</body>
+</html>

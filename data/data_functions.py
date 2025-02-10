@@ -505,12 +505,13 @@ def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
     for index, row in df.iterrows():
         start_time = row["Start"]
         end_time = row["End"]
-        weeks = [int(w) for w in row["Week"].split("-")]
+        # weeks = [int(w) for w in row["Week"].split("-")]
+        weeks = [int(w) for w in range(int(row["Week"].split("-")[0]), int(row["Week"].split("-")[1])+1)]
 
         for day_idx, day in enumerate(days_of_week):
             employees = row[day]
             if len(ppp_df) > 0:
-                ppp = ppp_df.columns[3:-2][day_idx]
+                ppp = ppp_df.columns[3:-4][day_idx]
                 ppp_level = ppp_df.loc[index, ppp]
 
             mask = (bemanningsplan["Dag"] == day) & (bemanningsplan["Uke"].isin(weeks))
@@ -660,12 +661,13 @@ def match_and_add_activity(df, row):
     start_times = df['Start'].values
     end_times = df['End'].values
     timer = row["Timer"]
+    dag = row["Dag"]
 
-    matching_condition = (start_times <= timer) & (timer <= end_times)
+    matching_condition = (start_times <= timer) & (timer < end_times)
     matching_rows = df[matching_condition]
 
     if not matching_rows.empty:
-        return matching_rows.iloc[0]['Aktivitet']
+        return matching_rows.iloc[0][dag]
     return None
 
 
