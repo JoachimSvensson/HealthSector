@@ -1,4 +1,6 @@
-from flask import Flask, request, jsonify, render_template, session
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask_bcrypt import Bcrypt
+from flask_login import login_user, logout_user, current_user, login_required
 from models import *
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,6 +16,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+password_key_users = 'ifargotoFsserGelpE!.-_-|§'
+password_key_admin = 'draagkaBlaakSretsiniM#45!==?;-.'
+bcrypt = Bcrypt()
 
 
 def register_routes(app,db):
@@ -142,6 +147,7 @@ def register_routes(app,db):
 
 
     @app.route('/api/recalculate_hospital_data', methods=["GET", "POST"])
+    @login_required
     def recalculate_hospital_data():
         import os
         if request.method == "GET":
@@ -191,12 +197,44 @@ def register_routes(app,db):
 
 
 
-    @app.route('/')
+
+    @app.route('/', methods=["GET", "POST"])
     def index():
+        if request.method == "GET":
+            return render_template('login.html')
+        elif request.method == "POST":
+            username = request.form.get("username")
+            password = request.form.get("password")
+            stay = request.form.get("stay")
+            description = request.form.get("description")
+            if password == password_key_users or password == password_key_admin:
+                hashed_password = bcrypt.generate_password_hash(password)
+                user= User(username=username, password=hashed_password, stay=stay, description=description)
+
+                db.session.add(user)
+                db.session.commit()
+                user = User.query.filter(User.username == username).first()
+
+                if bcrypt.check_password_hash(user.password, password):
+                    login_user(user)
+                    return redirect(url_for("choose_department"))
+            else:
+                return "Failed to log you in"
+
+    @app.route("/logout/")
+    @login_required
+    def logout():
+        logout_user()
+        return redirect(url_for("index"))
+
+
+    @app.route('/choose_department')
+    def choose_department():
         return render_template('choose_department.html')
 
 
     @app.route('/api/go_to_main', methods=["POST"])
+    @login_required
     def go_to_main():
         params = request.json
 
@@ -252,20 +290,21 @@ def register_routes(app,db):
 
     
     @app.route('/main')
+    @login_required
     def main():
-        # FAQ-siden
         return render_template('index.html')
 
 
 
     @app.route('/faq')
+    @login_required
     def faq():
-        # FAQ-siden
         return render_template('faq.html')
 
 
 
     @app.route('/api/get_table', methods=['POST'])
+    @login_required
     def get_table():
         params = request.json
         sheet_name = params.get('sheet_name', 'bemanningsplan')
@@ -292,6 +331,7 @@ def register_routes(app,db):
 
 
     @app.route('/update_table', methods=['POST'])
+    @login_required
     def update_table():
         data = request.json
         sheet_name = data.get('sheet', 'bemanningsplan') 
@@ -347,6 +387,7 @@ def register_routes(app,db):
 
 
     @app.route('/api/get_dropdown_values', methods = ["POST"])
+    @login_required
     def get_dropdown_values():
         database_path = './instance/bemanningslanternenDB.db'
         conn = sqlite3.connect(database_path)
@@ -360,6 +401,7 @@ def register_routes(app,db):
 
 
     @app.route('/api/get_plot_data', methods=['POST'])
+    @login_required
     def get_plot_data():
 
         params = request.json

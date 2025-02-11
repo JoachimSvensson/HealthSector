@@ -11,6 +11,8 @@ from optimization.optimization import *
 import itertools
 from datetime import time, timedelta
 import warnings
+from flask_login import LoginManager
+from flask_bcrypt import Bcrypt
 
 warnings.filterwarnings("ignore")
 
@@ -29,6 +31,22 @@ def create_app():
 
     db.init_app(app)
 
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+
+
+    from models import User
+    
+    @login_manager.user_loader
+    def load_user(uid):
+        return User.query.get(uid)
+    
+    @login_manager.unauthorized_handler
+    def unauth_callback():
+        return "You are not logged in, please do so before proceeding"
+
+
+    bcrypt = Bcrypt()
 
 
     from routes import register_routes

@@ -10,10 +10,11 @@
 </head>
 <body>
     <div class="navbar">
-        <a href="{{ url_for('index') }}">Sykehusvalg</a>
+        <a href="{{ url_for('choose_department') }}">Sykehusvalg</a>
         <a href="{{ url_for('main') }}">Bemanningsplanleggeren</a>
         <a href="{{ url_for('recalculate_hospital_data') }}">Last opp sykehusdata</a>
         <a href="{{ url_for('faq') }}">FAQ</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
         <!-- Legg til flere linker etter behov -->
     </div>
     {% block content %}{% endblock  %}
