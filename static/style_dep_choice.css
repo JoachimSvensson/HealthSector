@@ -61,6 +61,19 @@ button, .button-link {
     background-color: #0056b3;
 }
 
+
+
+#admin {
+    background-color: #007bff;
+    color: white;
+}
+
+#admin:hover {
+    background-color: #0056b3;
+}
+
+
+
 .button-link {
     background-color: #28a745;
     color: white;

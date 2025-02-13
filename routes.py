@@ -207,17 +207,25 @@ def register_routes(app,db):
             password = request.form.get("password")
             stay = request.form.get("stay")
             description = request.form.get("description")
+
             if password == password_key_users or password == password_key_admin:
-                hashed_password = bcrypt.generate_password_hash(password)
-                user= User(username=username, password=hashed_password, stay=stay, description=description)
-
-                db.session.add(user)
-                db.session.commit()
-                user = User.query.filter(User.username == username).first()
-
-                if bcrypt.check_password_hash(user.password, password):
+                user = User.query.filter_by(username=username).first()
+                if user:
+                    session["password"] = password
                     login_user(user)
                     return redirect(url_for("choose_department"))
+                else:
+                    hashed_password = bcrypt.generate_password_hash(password)
+                    user= User(username=username, password=hashed_password, stay=stay, description=description)
+
+                    db.session.add(user)
+                    db.session.commit()
+                    user = User.query.filter(User.username == username).first()
+
+                    if bcrypt.check_password_hash(user.password, password):
+                        session["password"] = password
+                        login_user(user)
+                        return redirect(url_for("choose_department"))
             else:
                 return "Failed to log you in"
 
@@ -229,6 +237,7 @@ def register_routes(app,db):
 
 
     @app.route('/choose_department')
+    @login_required
     def choose_department():
         return render_template('choose_department.html')
 
@@ -236,11 +245,13 @@ def register_routes(app,db):
     @app.route('/api/go_to_main', methods=["POST"])
     @login_required
     def go_to_main():
-        params = request.json
 
+        params = request.json
         nonlocal df_quarterly, df_full, bemanningsplan, døgnrytme_df, sykehus, post
+        # if session["password"] != password_key_admin:
         sykehus = params.get('sykehus')
         post = params.get('post')
+
         database_path = './instance/bemanningslanternenDB.db'
         conn = sqlite3.connect(database_path)
         
@@ -252,19 +263,42 @@ def register_routes(app,db):
         døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
         døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
         
-
         conn.close()
 
-        sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["sykehus"] == sykehus) & (fin_data_hourly["post"] == post)]
-        sykehusdata_final = sykehusdata_valg.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]       
+        if session["password"] == password_key_admin and sykehus == '' and post == '':
+            sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024)]
+        elif sykehus != '' and post != '':
+            sykehusdata_valg = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["sykehus"] == sykehus) & (fin_data_hourly["post"] == post)]
+        else:
+            return jsonify({'failed': True})
 
+        sykehusdata_final = sykehusdata_valg.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type", "sykehus", "post"]]       
 
         sykehusdata_final = sykehusdata_final[sykehusdata_final.Uke.isin(dataset_weeks)]
         sykehusdata_final['DatoTid'] = pd.to_datetime(sykehusdata_final['DatoTid'])
-
-        døgnrytme_df = døgnrytme_df[(døgnrytme_df["sykehus"] == sykehus) & (døgnrytme_df["post"] == post)]
-
+        if session["password"] == password_key_admin:
+            døgnrytme_df = døgnrytme_df
+        elif sykehus != '' and post != '':
+            døgnrytme_df = døgnrytme_df[(døgnrytme_df["sykehus"] == sykehus) & (døgnrytme_df["post"] == post)]
+        else:
+            døgnrytme_df = døgnrytme_df
         bemanningsplan = pd.DataFrame(kombinasjoner, columns=["Uke", "Dag", "Timer"])
+        if session["password"] == password_key_admin:
+            sykehus_post_kombinasjoner = bemanningsplan_df[["sykehus", "post"]].drop_duplicates()
+
+            n = len(sykehus_post_kombinasjoner)
+            df_duplisert_bemanning = pd.concat([bemanningsplan] * n, ignore_index=True)
+            df_duplisert_bemanning = df_duplisert_bemanning.reset_index(drop=True)
+
+            n = len(bemanningsplan)
+            df_duplisert_kombos = pd.concat([sykehus_post_kombinasjoner] * n, ignore_index=True)
+            df_duplisert_kombos = df_duplisert_kombos.sort_values(by=["sykehus", "post"]).reset_index(drop=True)
+
+            bemanningsplan = pd.concat([df_duplisert_bemanning, df_duplisert_kombos], axis=1)
+        else:
+            bemanningsplan["sykehus"] = sykehus 
+            bemanningsplan["post"] = post
+
         bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
             lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
         )
@@ -280,13 +314,18 @@ def register_routes(app,db):
 
         df_quarterly = pd.DataFrame(new_rows)
         df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
-        df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+        df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer", "sykehus", "post"], how="left")
         df_full = df_full.apply(nightshift_weight, axis=1)
-
-        if df_full.empty or df_full is None:
-            return jsonify({'success': False, 'message': 'Something went wrong, necessary table is created'}), 400
+        if session["password"] == password_key_admin:
+            if df_full.empty or df_full is None:
+                return jsonify({'admin': True, 'success': False, 'message': 'Something went wrong, necessary table is created'}), 400
+            else:
+                return jsonify({'admin': True, 'success': True})
         else:
-            return jsonify({'success': True})
+            if df_full.empty or df_full is None:
+                return jsonify({'success': False, 'message': 'Something went wrong, necessary table is created'}), 400
+            else:
+                return jsonify({'success': True})
 
     
     @app.route('/main')
@@ -317,7 +356,11 @@ def register_routes(app,db):
         df_copy = df.copy(deep=True)
         conn.close()
 
-        df_copy = df_copy[(df_copy["sykehus"] == sykehus) & (df_copy["post"] == post)]
+        if sykehus == '' and post == '':
+            df_copy = df_copy
+        else:
+            df_copy = df_copy[(df_copy["sykehus"] == sykehus) & (df_copy["post"] == post)]
+        
         if df_copy is not None:
             # df_copy['Start'] = df_copy['Start'].apply(lambda x: x.strftime('%H:%M:%S'))
             # df_copy['End'] = df_copy['End'].apply(lambda x: x.strftime('%H:%M:%S'))
@@ -349,13 +392,13 @@ def register_routes(app,db):
         else:
             return jsonify({'success': False, 'message': 'Invalid table name'}), 400
         
-        # if sheet_name == "døgnrytmeplan":
-        db.session.query(table_class).filter(
-            table_class.sykehus == sykehus,
-            table_class.post == post
-        ).delete(synchronize_session=False)
-        # else:
-        #     db.session.query(table_class).delete()
+        if sykehus != '' and post != '':
+            db.session.query(table_class).filter(
+                table_class.sykehus == sykehus,
+                table_class.post == post
+            ).delete(synchronize_session=False)
+        else:
+            db.session.query(table_class).delete()
 
         for row in rows:
             new_entry = table_class(**row) 
@@ -370,8 +413,13 @@ def register_routes(app,db):
             døgnrytmeplan_query = f"SELECT * FROM døgnrytmeplan"
             døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
             conn.close()
-
-            døgnrytme_df = døgnrytme_df[(døgnrytme_df["sykehus"] == sykehus) & (døgnrytme_df["post"] == post)]
+            if session["password"] == password_key_admin:
+                døgnrytme_df = døgnrytme_df
+            elif sykehus != '' and post != '':
+                døgnrytme_df = døgnrytme_df[(døgnrytme_df["sykehus"] == sykehus) & (døgnrytme_df["post"] == post)]
+            else:
+                døgnrytme_df = døgnrytme_df
+            
             døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
             døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
 
@@ -379,7 +427,7 @@ def register_routes(app,db):
             lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
             )
 
-            df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
+            df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer", "sykehus", "post"], how="left")
             df_full = df_full.apply(nightshift_weight, axis=1)
 
         return jsonify({'success': True})
@@ -394,9 +442,14 @@ def register_routes(app,db):
         query = f"SELECT * FROM bemanningsplan"
         df = pd.read_sql_query(query, conn)
         conn.close()
-        df = df[(df["sykehus"] == sykehus) & (df["post"] == post)]
+        if sykehus == '' and post == '':
+            df = df
+        else:
+            df = df[(df["sykehus"] == sykehus) & (df["post"] == post)]
         bemanningsplaner = df.Navn.unique().tolist()
-        return jsonify({'plan': bemanningsplaner})
+        sykehus_valg = df.sykehus.unique().tolist()
+        post_valg = df.post.unique().tolist()
+        return jsonify({'plan': bemanningsplaner, 'sykehus':sykehus_valg, 'post': post_valg})
 
 
 
@@ -413,6 +466,8 @@ def register_routes(app,db):
         start = params.get('start_dato', None)
         end = params.get('slutt_dato', None)
         plan = params.get('plan', "Grunnplan")
+        sykehus_plot_valg = params.get('sykehus', "hammerfest")
+        post_plot_valg = params.get('post', "medisinsk")
         
         conn = sqlite3.connect(database_path)
         bemanningsplan_query = "SELECT * FROM bemanningsplan"
@@ -433,20 +488,29 @@ def register_routes(app,db):
         ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
         ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
 
-        bemanningsplan_df = bemanningsplan_df[(bemanningsplan_df["sykehus"] == sykehus) & (bemanningsplan_df["post"] == post)]        
-        ppp_df = ppp_df[(ppp_df["sykehus"] == sykehus) & (ppp_df["post"] == post)]
+        if session["password"] == password_key_admin:
+            bemanningsplan_df = bemanningsplan_df
+            ppp_df = ppp_df
+        else:
+            bemanningsplan_df = bemanningsplan_df[(bemanningsplan_df["sykehus"] == sykehus) & (bemanningsplan_df["post"] == post)]        
+            ppp_df = ppp_df[(ppp_df["sykehus"] == sykehus) & (ppp_df["post"] == post)]
 
         uten_ansatte = df_full.copy(deep=True)
+        uten_ansatte = uten_ansatte[(uten_ansatte["sykehus"] == sykehus_plot_valg) & (uten_ansatte["post"] == post_plot_valg)]
         pasient_per_pleier  = ppp_df.copy(deep=True)
+        pasient_per_pleier  = pasient_per_pleier[(pasient_per_pleier["Navn"] == plan) & (pasient_per_pleier["sykehus"] == sykehus_plot_valg) & (pasient_per_pleier["post"] == post_plot_valg)]
         bemanning = bemanningsplan_df.copy(deep=True)
-        bemanning = bemanning[bemanning["Navn"] == plan]
-        
+        bemanning = bemanning[(bemanning["Navn"] == plan) & (bemanning["sykehus"] == sykehus_plot_valg) & (bemanning["post"] == post_plot_valg)]
+
+        if df_full.empty or bemanning.empty:
+            return jsonify({'failed': True})
+
         oppdatert_bemanningsplan = oppdater_bemanningsplan(bemanning, uten_ansatte, pasient_per_pleier)
         oppdatert_bemanningsplan['Reell_PPP'] = oppdatert_bemanningsplan.apply(PPP, axis=1)
         oppdatert_bemanningsplan['SI'] = oppdatert_bemanningsplan.apply(SkiftIntensitet, axis=1)
 
 
-
+        print(oppdatert_bemanningsplan)
         if tidsperiode == "hele perioden":
             kombinert_tabell = oppdatert_bemanningsplan.copy(deep=True)
         else:
@@ -507,8 +571,8 @@ def register_routes(app,db):
                 tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
         except:
             tabell = None
-        
-        
+        print(tabell)
+
         if aggregering == "hele perioden":
             visualisering = kombinert_tabell[visualiseringskolonne].tolist()
             plt.figure(figsize=(20, 8))
@@ -571,3 +635,4 @@ def register_routes(app,db):
 
         else:
             return jsonify({'table': df.to_html(index=False)})
+

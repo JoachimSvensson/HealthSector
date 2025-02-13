@@ -3,6 +3,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     const HOTtableDiv = document.getElementById("hot-container");
     const selectElement1 = document.getElementById("plan-1");
     const selectElement2 = document.getElementById("plan-2");
+    const selectElementSykehus1 = document.getElementById("sykehus-1");
+    const selectElementPost1 = document.getElementById("post-1");
+    const selectElementSykehus2 = document.getElementById("sykehus-2");
+    const selectElementPost2 = document.getElementById("post-2");
     let hot;
 
     try {
@@ -39,6 +43,81 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error("Feil ved henting av data:", error);
         selectElement1.innerHTML = '<option value="">Kunne ikke laste planer</option>';
         selectElement2.innerHTML = '<option value="">Kunne ikke laste planer</option>';
+    }
+
+
+    try {
+        const response = await fetch('/api/get_dropdown_values',{
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (data.sykehus && Array.isArray(data.sykehus)) {
+            selectElementSykehus1.innerHTML = '<option value="">Velg et sykehus</option>';
+            selectElementSykehus2.innerHTML = '<option value="">Velg et sykehus</option>';
+
+            new Set(data.sykehus).forEach(sykehus => {
+                const option = document.createElement("option");
+                option.value = sykehus;
+                option.textContent = sykehus;
+                selectElementSykehus1.appendChild(option);
+            });
+
+            new Set(data.sykehus).forEach(sykehus => {
+                const option = document.createElement("option");
+                option.value = sykehus;
+                option.textContent = sykehus;
+                selectElementSykehus2.appendChild(option);
+            });
+
+
+        } else {
+            selectElementSykehus1.innerHTML = '<option value="">Ingen sykehus funnet</option>';
+            selectElementSykehus2.innerHTML = '<option value="">Ingen sykehus funnet</option>';
+        }
+    } catch (error) {
+        console.error("Feil ved henting av data:", error);
+        selectElementSykehus1.innerHTML = '<option value="">Kunne ikke laste sykehus</option>';
+        selectElementSykehus2.innerHTML = '<option value="">Kunne ikke laste sykehus</option>';
+    }
+
+
+
+    try {
+        const response = await fetch('/api/get_dropdown_values',{
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (data.post && Array.isArray(data.post)) {
+            selectElementPost1.innerHTML = '<option value="">Velg en post</option>';
+            selectElementPost2.innerHTML = '<option value="">Velg en post</option>';
+
+            new Set(data.post).forEach(post => {
+                const option = document.createElement("option");
+                option.value = post;
+                option.textContent = post;
+                selectElementPost1.appendChild(option);
+            });
+
+            new Set(data.post).forEach(post => {
+                const option = document.createElement("option");
+                option.value = post;
+                option.textContent = post;
+                selectElementPost2.appendChild(option);
+            });
+
+
+        } else {
+            selectElementPost1.innerHTML = '<option value="">Ingen post funnet</option>';
+            selectElementPost2.innerHTML = '<option value="">Ingen post funnet</option>';
+        }
+    } catch (error) {
+        console.error("Feil ved henting av data:", error);
+        selectElementPost1.innerHTML = '<option value="">Kunne ikke laste post</option>';
+        selectElementPost2.innerHTML = '<option value="">Kunne ikke laste post</option>';
     }
 
 
@@ -285,6 +364,82 @@ document.addEventListener("DOMContentLoaded", async function () {
                 selectElement1.innerHTML = '<option value="">Kunne ikke laste planer</option>';
                 selectElement2.innerHTML = '<option value="">Kunne ikke laste planer</option>';
             }
+
+
+
+            try {
+                const response = await fetch('/api/get_dropdown_values',{
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+        
+                if (data.sykehus && Array.isArray(data.sykehus)) {
+                    selectElementSykehus1.innerHTML = '<option value="">Velg et sykehus</option>';
+                    selectElementSykehus2.innerHTML = '<option value="">Velg et sykehus</option>';
+        
+                    new Set(data.sykehus).forEach(sykehus => {
+                        const option = document.createElement("option");
+                        option.value = sykehus;
+                        option.textContent = sykehus;
+                        selectElementSykehus1.appendChild(option);
+                    });
+        
+                    new Set(data.sykehus).forEach(sykehus => {
+                        const option = document.createElement("option");
+                        option.value = sykehus;
+                        option.textContent = sykehus;
+                        selectElementSykehus2.appendChild(option);
+                    });
+        
+        
+                } else {
+                    selectElementSykehus1.innerHTML = '<option value="">Ingen sykehus funnet</option>';
+                    selectElementSykehus2.innerHTML = '<option value="">Ingen sykehus funnet</option>';
+                }
+            } catch (error) {
+                console.error("Feil ved henting av data:", error);
+                selectElementSykehus1.innerHTML = '<option value="">Kunne ikke laste sykehus</option>';
+                selectElementSykehus2.innerHTML = '<option value="">Kunne ikke laste sykehus</option>';
+            }
+        
+        
+        
+            try {
+                const response = await fetch('/api/get_dropdown_values',{
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const data = await response.json();
+        
+                if (data.post && Array.isArray(data.post)) {
+                    selectElementPost1.innerHTML = '<option value="">Velg en post</option>';
+                    selectElementPost2.innerHTML = '<option value="">Velg en post</option>';
+        
+                    new Set(data.post).forEach(post => {
+                        const option = document.createElement("option");
+                        option.value = post;
+                        option.textContent = post;
+                        selectElementPost1.appendChild(option);
+                    });
+        
+                    new Set(data.post).forEach(post => {
+                        const option = document.createElement("option");
+                        option.value = post;
+                        option.textContent = post;
+                        selectElementPost2.appendChild(option);
+                    });
+        
+        
+                } else {
+                    selectElementPost1.innerHTML = '<option value="">Ingen post funnet</option>';
+                    selectElementPost2.innerHTML = '<option value="">Ingen post funnet</option>';
+                }
+            } catch (error) {
+                console.error("Feil ved henting av data:", error);
+                selectElementPost1.innerHTML = '<option value="">Kunne ikke laste post</option>';
+                selectElementPost2.innerHTML = '<option value="">Kunne ikke laste post</option>';
+            }
         
         
         
@@ -323,6 +478,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 visualiseringskolonne: document.getElementById(`visualiseringskolonne-${side}`).value,
                 skift: document.getElementById(`skift-${side}`).value,
                 plan: document.getElementById(`plan-${side}`).value, 
+                sykehus: document.getElementById(`sykehus-${side}`).value, 
+                post: document.getElementById(`post-${side}`).value, 
                 start_dato: document.getElementById(`start-dato-${side}`).value,
                 slutt_dato: document.getElementById(`slutt-dato-${side}`).value
             };
@@ -337,7 +494,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const data = await response.json();
 
                 clearDisplay(side); 
-
+                if (data.failed) {
+                    alert("Kombinasjonen av plan, sykehus og post finnes ikke. Velg en ny kombinasjon.");
+                }
                 if (data.plot) {
                     plotImg.src = `data:image/png;base64,${data.plot}`;
                     plotImg.style.display = 'block';

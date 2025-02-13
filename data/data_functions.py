@@ -513,10 +513,9 @@ def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
             if len(ppp_df) > 0:
                 ppp = ppp_df.columns[3:-4][day_idx]
                 ppp_level = ppp_df.loc[index, ppp]
-
+            
             mask = (bemanningsplan["Dag"] == day) & (bemanningsplan["Uke"].isin(weeks))
 
-            # Convert start_time and end_time to datetime for comparison
             start_datetime = pd.to_datetime(f"2000-01-01 {start_time}", format="%Y-%m-%d %H:%M:%S")
             end_datetime = pd.to_datetime(f"2000-01-01 {end_time}", format="%Y-%m-%d %H:%M:%S")
 
@@ -526,7 +525,7 @@ def oppdater_bemanningsplan(df, bemanningsplan, ppp_df):
             else:
                 # For shifts that go over midnight
                 mask1 = mask & (bemanningsplan["Timer"].between(start_datetime.time(), time(23, 59, 59)))
-                mask2 = mask & (bemanningsplan["Timer"].between(time(0, 0), end_datetime.time()))
+                mask2 = mask & (bemanningsplan["Timer"].between(time(0, 0), (end_datetime-pd.Timedelta(seconds=1)).time()))
                 mask = mask1 | mask2
 
             bemanningsplan.loc[mask, "AntallAnsatte"] += employees
@@ -656,6 +655,20 @@ def add_shift_type_quarterly(row):
 #         return None
     
 
+# def match_and_add_activity(df, row):
+#     import numpy as np
+#     start_times = df['Start'].values
+#     end_times = df['End'].values
+#     timer = row["Timer"]
+#     dag = row["Dag"]
+
+#     matching_condition = (start_times <= timer) & (timer < end_times)
+#     matching_rows = df[matching_condition]
+
+#     if not matching_rows.empty:
+#         return matching_rows.iloc[0][dag]
+#     return None
+
 def match_and_add_activity(df, row):
     import numpy as np
     start_times = df['Start'].values
@@ -663,14 +676,21 @@ def match_and_add_activity(df, row):
     timer = row["Timer"]
     dag = row["Dag"]
 
-    matching_condition = (start_times <= timer) & (timer < end_times)
-    matching_rows = df[matching_condition]
+    try:
+        sykehus_df = df["sykehus"].values
+        post_df = df["post"].values
+        sykehus_row = row["sykehus"]
+        post_row = row["post"]
 
+        matching_condition = (start_times <= timer) & (timer < end_times) & (sykehus_df == sykehus_row) & (post_df == post_row)
+        matching_rows = df[matching_condition]
+    except:
+        matching_condition = (start_times <= timer) & (timer < end_times)
+        matching_rows = df[matching_condition]
+        
     if not matching_rows.empty:
         return matching_rows.iloc[0][dag]
     return None
-
-
 
 
 def remove_microseconds(time_str):
