@@ -18,8 +18,8 @@ from secret_info import password_key_admin, password_key_users
 
 warnings.filterwarnings("ignore")
 
-password_key_users = 'ifargotoFsserGelpE!.-_-|§'
-password_key_admin = 'draagkaBlaakSretsiniM#45!==?;-.'
+password_key_users = password_key_users
+password_key_admin = password_key_admin
 bcrypt = Bcrypt()
 
 
