@@ -13,6 +13,7 @@ from datetime import time, timedelta
 import warnings
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
+from secret_info import app_secret_key
 
 warnings.filterwarnings("ignore")
 
@@ -27,7 +28,7 @@ def create_app():
 
 
     app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///./bemanningslanternenDB.db'
-    app.secret_key = 'KPMGs Bemanningslanterne'
+    app.secret_key = app_secret_key
 
     db.init_app(app)
 

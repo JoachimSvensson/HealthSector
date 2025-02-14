@@ -13,6 +13,8 @@ import itertools
 from datetime import time, timedelta
 import sqlite3
 import warnings
+from secret_info import password_key_admin, password_key_users
+
 
 warnings.filterwarnings("ignore")
 
@@ -23,31 +25,6 @@ bcrypt = Bcrypt()
 
 def register_routes(app,db):
     from datetime import time, timedelta
-    # dfs_dict = read_folder_to_dfs("./data/timesdata")
-    # fin_data_hourly = create_hourly_obt(dfs_dict)
-    # fin_data_hourly["skift_type"] = fin_data_hourly.apply(add_shift_type, axis=1)
-    # fin_data_hourly.head(10)
-
-
-    # fin_data_hourly_med = fin_data_hourly[fin_data_hourly["post"]=="medisinsk"]
-    # fin_data_hourly_kir = fin_data_hourly[fin_data_hourly["post"]=="kirurgisk"]
-
-    # fin_data_hourly_med["Belegg"] = fin_data_hourly_med.apply(calculate_patients, axis=1)
-    # fin_data_hourly_kir["Belegg"] = fin_data_hourly_kir.apply(calculate_patients, axis=1)
-
-    # next_year_med = create_forecast_hourly(fin_data_hourly_med, "medisinsk")
-    # next_year_kir = create_forecast_hourly(fin_data_hourly_kir, "kirurgisk")
-
-    # next_year = pd.concat([next_year_med, next_year_kir], axis=0).sort_values("DatoTid").reset_index()
-    # next_year.drop(["index"], axis=1, inplace=True)
-    # next_year["skift_type"] = next_year.apply(add_shift_type, axis=1)
-
-    # fin_data_hourly["Prediksjoner pasientstrøm"] = np.nan
-    # fin_data_hourly["Prediksjoner belegg"] = np.nan
-
-    # fin_data_hourly = pd.concat([fin_data_hourly_med, fin_data_hourly_kir, next_year], axis=0).sort_values("DatoTid").reset_index()
-    # fin_data_hourly.drop(["index"], axis=1, inplace=True)
-
 
 
     UPLOAD_FOLDER = "./data/timesdata"
@@ -58,30 +35,14 @@ def register_routes(app,db):
     database_path = './instance/bemanningslanternenDB.db'
     conn = sqlite3.connect(database_path)
 
-    # sykehus_query = "SELECT * FROM sykehusdata"
     bemanningsplan_query = "SELECT * FROM bemanningsplan"
     ppp_query = "SELECT * FROM ppp"
-    # døgnrytmeplan_query = "SELECT * FROM døgnrytmeplan"
-    
-    # fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
-    # # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
-    # fin_med_24 = fin_data_hourly[(fin_data_hourly["År"] == 2024) & (fin_data_hourly["post"] == "medisinsk")]
-    # test = fin_med_24.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type"]]
 
-    # excel_file = "test_data.xlsx"
-    # df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan', engine='openpyxl')
-    # bemanningsplan_df = pd.read_excel(excel_file, sheet_name= 'bemanningsplan (2)', engine='openpyxl')
-    # df = df[df["Aktivering"] == "Aktiv"]
     bemanningsplan_df = pd.read_sql_query(bemanningsplan_query, conn)
     bemanningsplan_df = bemanningsplan_df[bemanningsplan_df["Navn"] != "Inaktiv"]
 
-    # ppp_df = pd.read_excel(excel_file, sheet_name= 'ppp', engine='openpyxl')
-    # ppp_df = ppp_df[ppp_df["Aktivering"] == "Aktiv"]
     ppp_df = pd.read_sql_query(ppp_query, conn)
     ppp_df = ppp_df[ppp_df["Navn"] != "Inaktiv"]
-    # døgnrytme_df = pd.read_excel(excel_file, sheet_name='døgnrytmetabell', engine='openpyxl')
-
-    # døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
 
     conn.close()
 
@@ -92,9 +53,6 @@ def register_routes(app,db):
     ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
     ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
     
-    # døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
-    # døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
-
 
 
     days_list = bemanningsplan_df.columns[3:-4].tolist()
@@ -113,32 +71,6 @@ def register_routes(app,db):
 
     kombinasjoner = list(itertools.product(dataset_weeks, days_list, quarters))
     bemanningsplan = pd.DataFrame(kombinasjoner, columns=["Uke", "Dag", "Timer"])
-    # bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
-    #     lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
-    # )
-
-
-    # test = test[test.Uke.isin(dataset_weeks)]
-    # test['DatoTid'] = pd.to_datetime(test['DatoTid'])
-
-
-    # new_rows = []
-    # for _, row in test.iterrows():
-    #     quarterly_times_and_timers = create_quarterly_times_and_update_timer(row)
-    #     for time, timer in quarterly_times_and_timers:
-    #         new_row = row.copy()
-    #         new_row['DatoTid'] = time
-    #         new_row['Timer'] = timer
-    #         new_rows.append(new_row)
-
-    # df_quarterly = pd.DataFrame(new_rows)
-    # df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
-    # df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer"], how="left")
-    # df_full = df_full.apply(nightshift_weight, axis=1)
-
-    # excel_file = "test_data.xlsx"
-    # sheets = pd.read_excel(excel_file, sheet_name= ['bemanningsplan (2)', 'ppp', 'døgnrytmetabell'], engine='openpyxl')
-
     døgnrytme_df = None
     df_quarterly = None
     df_full = None
@@ -196,8 +128,6 @@ def register_routes(app,db):
                 return jsonify({"message": f"Feil: {str(e)}", 'success': False}), 500
 
 
-
-
     @app.route('/', methods=["GET", "POST"])
     def index():
         if request.method == "GET":
@@ -229,6 +159,7 @@ def register_routes(app,db):
             else:
                 return "Failed to log you in"
 
+
     @app.route("/logout/")
     @login_required
     def logout():
@@ -248,7 +179,6 @@ def register_routes(app,db):
 
         params = request.json
         nonlocal df_quarterly, df_full, bemanningsplan, døgnrytme_df, sykehus, post
-        # if session["password"] != password_key_admin:
         sykehus = params.get('sykehus')
         post = params.get('post')
 
@@ -334,12 +264,10 @@ def register_routes(app,db):
         return render_template('index.html')
 
 
-
     @app.route('/faq')
     @login_required
     def faq():
         return render_template('faq.html')
-
 
 
     @app.route('/api/get_table', methods=['POST'])
@@ -347,8 +275,7 @@ def register_routes(app,db):
     def get_table():
         params = request.json
         sheet_name = params.get('sheet_name', 'bemanningsplan')
-        # nonlocal sheets
-        # df = sheets.get(sheet_name)
+
         database_path = './instance/bemanningslanternenDB.db'
         conn = sqlite3.connect(database_path)
         query = f"SELECT * FROM {sheet_name}"
@@ -362,8 +289,6 @@ def register_routes(app,db):
             df_copy = df_copy[(df_copy["sykehus"] == sykehus) & (df_copy["post"] == post)]
         
         if df_copy is not None:
-            # df_copy['Start'] = df_copy['Start'].apply(lambda x: x.strftime('%H:%M:%S'))
-            # df_copy['End'] = df_copy['End'].apply(lambda x: x.strftime('%H:%M:%S'))
             table_data = {
                 'headers': df_copy.columns.tolist(),  
                 'data': df_copy.values.tolist() 
@@ -433,7 +358,6 @@ def register_routes(app,db):
         return jsonify({'success': True})
 
 
-
     @app.route('/api/get_dropdown_values', methods = ["POST"])
     @login_required
     def get_dropdown_values():
@@ -450,7 +374,6 @@ def register_routes(app,db):
         sykehus_valg = df.sykehus.unique().tolist()
         post_valg = df.post.unique().tolist()
         return jsonify({'plan': bemanningsplaner, 'sykehus':sykehus_valg, 'post': post_valg})
-
 
 
     @app.route('/api/get_plot_data', methods=['POST'])
@@ -535,7 +458,6 @@ def register_routes(app,db):
         if aggregering == "gjennomsnittlig uke":
             # Average week
             tabell = kombinert_tabell.groupby(["Dag", "Timer"])[visualiseringskolonne].mean().reset_index()
-            # result = result.pivot(index="Timer", columns="Dag", values=visualiseringskolonne)
         elif aggregering == "beste uke":
             result = kombinert_tabell.groupby("Uke")[visualiseringskolonne].mean().idxmin()
             tabell = kombinert_tabell[kombinert_tabell["Uke"] == result]
@@ -586,7 +508,6 @@ def register_routes(app,db):
             plt.grid(True)
             plt.xticks(kombinert_tabell['DatoTid'].dt.date.unique().tolist(), rotation=45)
             plt.tight_layout()
-            # plt.show()
 
         else:
             try:

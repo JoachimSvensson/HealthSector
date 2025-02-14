@@ -129,6 +129,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         plotImg.src = "";
         tableDiv.innerHTML = "";
     }
+    
     sheetSelector.addEventListener("click", async () => {
         const option = {sheet_name : sheetSelector.value};
         const response = await fetch('/api/get_table', {
@@ -304,10 +305,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
     
 
-
-
-
-
     document.getElementById("saveChanges").addEventListener("click", async function () {
         const hotData = hot.getData();  
         const tableHeaders = hot.getColHeader();
@@ -448,11 +445,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
-
-
-
-
-    
+ 
     function setupPlotSection(side) {
         const tidsperiode = document.getElementById(`tidsperiode-${side}`);
         const datoerDiv = document.getElementById(`datoer-${side}`);
