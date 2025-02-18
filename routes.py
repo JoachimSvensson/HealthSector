@@ -433,7 +433,7 @@ def register_routes(app,db):
         oppdatert_bemanningsplan['SI'] = oppdatert_bemanningsplan.apply(SkiftIntensitet, axis=1)
 
 
-        print(oppdatert_bemanningsplan)
+        # print(oppdatert_bemanningsplan)
         if tidsperiode == "hele perioden":
             kombinert_tabell = oppdatert_bemanningsplan.copy(deep=True)
         else:
@@ -493,7 +493,7 @@ def register_routes(app,db):
                 tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
         except:
             tabell = None
-        print(tabell)
+        # print(tabell)
 
         if aggregering == "hele perioden":
             visualisering = kombinert_tabell[visualiseringskolonne].tolist()

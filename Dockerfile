@@ -1,4 +1,4 @@
-FROM python:3.9.18
+FROM python:3.9.18-slim
 
 
 WORKDIR /flask-app
@@ -14,5 +14,7 @@ COPY . .
 # RUN flask db init
 # RUN flask db migrate
 # RUN flask db upgrade
-
-CMD ["python", "run.py"]
+ENV FLASK_APP=run.py 
+ENV FLASK_RUN_HOST=0.0.0.0
+EXPOSE 5000
+CMD ["flask", "run"]
