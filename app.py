@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, session
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+import logging
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -25,7 +26,7 @@ db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
-
+    app.logger.setLevel(logging.INFO)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///./bemanningslanternenDB.db'
     app.secret_key = app_secret_key

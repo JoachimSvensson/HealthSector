@@ -552,3 +552,32 @@ def remove_microseconds(time_str):
     from datetime import datetime
     time_obj = datetime.strptime(time_str, '%H:%M:%S.%f').time()
     return time_obj # .strftime('%H:%M:%S')
+
+
+
+def prosesser_døgnrytme_df(døgnrytme_df):
+    from datetime import time
+    if døgnrytme_df.iloc[-1]["Start"] != time(23, 59):
+        ny_rad = døgnrytme_df.iloc[-1].copy()
+        ny_rad["Start"] = ny_rad["End"]
+        ny_rad["End"] = time(23, 59)
+        døgnrytme_df = pd.concat([døgnrytme_df, ny_rad.to_frame().T], ignore_index=True)
+
+    døgnrytme_df['Start'] = pd.to_datetime(døgnrytme_df['Start'].astype(str).values)
+
+    liste_av_ppp_per_kvarter = (
+        døgnrytme_df
+        .set_index('Start')
+        .resample('15T')
+        .ffill()
+        .reset_index()
+        # .drop(columns=['sykehus', 'post', 'End'])
+        .melt(id_vars=['Start', 'sykehus', 'post', 'End'])
+    )
+
+    liste_av_ppp_per_kvarter['Start'] = liste_av_ppp_per_kvarter['Start'].dt.time
+    døgnrytme_df['Start'] = døgnrytme_df['Start'].dt.time
+
+    liste_av_ppp_per_kvarter.rename(columns={'Start': 'Timer', 'variable': 'Dag','value': 'DøgnrytmeAktivitet'}, inplace=True)
+
+    return liste_av_ppp_per_kvarter

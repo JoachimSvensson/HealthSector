@@ -47,11 +47,11 @@ def register_routes(app,db):
     conn.close()
 
 
-    bemanningsplan_df['Start'] = bemanningsplan_df['Start'].apply(remove_microseconds)
-    bemanningsplan_df['End'] = bemanningsplan_df['End'].apply(remove_microseconds)
+    #bemanningsplan_df['Start'] = bemanningsplan_df['Start'].apply(remove_microseconds)
+    #bemanningsplan_df['End'] = bemanningsplan_df['End'].apply(remove_microseconds)
 
-    ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
-    ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
+    #ppp_df['Start'] = ppp_df['Start'].apply(remove_microseconds)
+    #ppp_df['End'] = ppp_df['End'].apply(remove_microseconds)
     
 
 
@@ -121,7 +121,7 @@ def register_routes(app,db):
                 csv_path = 'fin_data_hourly.csv'
 
                 csv_tabell_last_til_db(csv_file=csv_path, table_name='sykehusdata', db_path=database_path)
-                print("Data importert vellykket!")
+                app.logger.info("Data importert vellykket!")
 
                 return jsonify({"message": f"Fil '{filename}' lagret!", "file_path": file_path, 'success': True}), 200
             except Exception as e:
@@ -176,7 +176,6 @@ def register_routes(app,db):
     @app.route('/api/go_to_main', methods=["POST"])
     @login_required
     def go_to_main():
-
         params = request.json
         nonlocal df_quarterly, df_full, bemanningsplan, døgnrytme_df, sykehus, post
         sykehus = params.get('sykehus')
@@ -184,12 +183,14 @@ def register_routes(app,db):
 
         database_path = './instance/bemanningslanternenDB.db'
         conn = sqlite3.connect(database_path)
-        
         sykehus_query = "SELECT * FROM sykehusdata"
         fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
+        # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
 
         døgnrytmeplan_query = "SELECT * FROM døgnrytmeplan"
         døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
+        # døgnrytme_df = pd.read_excel("test_data.xlsx", sheet_name='døgnrytmetabell', engine='openpyxl')
+
         døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
         døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
         
@@ -202,10 +203,13 @@ def register_routes(app,db):
         else:
             return jsonify({'failed': True})
 
+        
         sykehusdata_final = sykehusdata_valg.loc[:, ["DatoTid","Uke", "Dag", "Timer", "Belegg", "skift_type", "sykehus", "post"]]       
 
         sykehusdata_final = sykehusdata_final[sykehusdata_final.Uke.isin(dataset_weeks)]
+        
         sykehusdata_final['DatoTid'] = pd.to_datetime(sykehusdata_final['DatoTid'])
+        
         if session["password"] == password_key_admin:
             døgnrytme_df = døgnrytme_df
         elif sykehus != '' and post != '':
@@ -213,6 +217,7 @@ def register_routes(app,db):
         else:
             døgnrytme_df = døgnrytme_df
         bemanningsplan = pd.DataFrame(kombinasjoner, columns=["Uke", "Dag", "Timer"])
+
         if session["password"] == password_key_admin:
             sykehus_post_kombinasjoner = bemanningsplan_df[["sykehus", "post"]].drop_duplicates()
 
@@ -229,9 +234,16 @@ def register_routes(app,db):
             bemanningsplan["sykehus"] = sykehus 
             bemanningsplan["post"] = post
 
-        bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
-            lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
-        )
+
+        sykehus_post_kombinasjoner_døgnrytme = døgnrytme_df[["sykehus", "post"]].drop_duplicates()
+        indeksliste = sykehus_post_kombinasjoner_døgnrytme.index.tolist()
+        split_points = indeksliste + [int(døgnrytme_df.index.max())+1]
+        sub_df_list = [døgnrytme_df.loc[split_points[i]:split_points[i+1]-1] for i in range(len(split_points)-1)]
+
+        result_list = [prosesser_døgnrytme_df(df) for df in sub_df_list]
+        endelig_df = pd.concat(result_list, ignore_index=True)
+
+        bemanningsplan = pd.merge(bemanningsplan, endelig_df[['Timer', 'Dag', 'sykehus', 'post', 'DøgnrytmeAktivitet']], on=['Timer', 'Dag','sykehus', 'post'], how='left')
 
         new_rows = []
         for _, row in sykehusdata_final.iterrows():
@@ -243,9 +255,22 @@ def register_routes(app,db):
                 new_rows.append(new_row)
 
         df_quarterly = pd.DataFrame(new_rows)
-        df_quarterly["skift_type"] = df_quarterly.apply(add_shift_type_quarterly, axis=1)
+
+        from datetime import datetime
+        morning_start = datetime.strptime("07:15:00", "%H:%M:%S").time()
+        afternoon_start = datetime.strptime("14:45:00", "%H:%M:%S").time()
+        evening_start = datetime.strptime("21:45:00", "%H:%M:%S").time()
+
+        dag_mask = (df_quarterly["Timer"] > morning_start) & (df_quarterly["Timer"] <= afternoon_start)
+        kveld_mask = (df_quarterly["Timer"] > afternoon_start) & (df_quarterly["Timer"] <= evening_start)
+
+        df_quarterly["skift_type"] = np.select([dag_mask, kveld_mask], ["dag", "kveld"], default="natt")
+        
         df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer", "sykehus", "post"], how="left")
-        df_full = df_full.apply(nightshift_weight, axis=1)
+        df_full["Belegg"] = np.ceil(df_full["Belegg"]*(df_full["DøgnrytmeAktivitet"]/10)).astype(int)
+        # df_full = df_full.apply(nightshift_weight, axis=1)
+        
+
         if session["password"] == password_key_admin:
             if df_full.empty or df_full is None:
                 return jsonify({'admin': True, 'success': False, 'message': 'Something went wrong, necessary table is created'}), 400
@@ -280,6 +305,7 @@ def register_routes(app,db):
         conn = sqlite3.connect(database_path)
         query = f"SELECT * FROM {sheet_name}"
         df = pd.read_sql_query(query, conn)
+        # df = pd.read_excel("test_data.xlsx", sheet_name=sheet_name, engine='openpyxl')
         df_copy = df.copy(deep=True)
         conn.close()
 
@@ -334,10 +360,12 @@ def register_routes(app,db):
 
         if sheet_name == "døgnrytmeplan":
             nonlocal bemanningsplan, df_quarterly, df_full
+            database_path = './instance/bemanningslanternenDB.db'
             conn = sqlite3.connect(database_path)
             døgnrytmeplan_query = f"SELECT * FROM døgnrytmeplan"
             døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
             conn.close()
+            # døgnrytme_df = pd.read_excel("test_data.xlsx", sheet_name='døgnrytmetabell', engine='openpyxl')
             if session["password"] == password_key_admin:
                 døgnrytme_df = døgnrytme_df
             elif sykehus != '' and post != '':
@@ -348,12 +376,25 @@ def register_routes(app,db):
             døgnrytme_df['Start'] = døgnrytme_df['Start'].apply(remove_microseconds)
             døgnrytme_df['End'] = døgnrytme_df['End'].apply(remove_microseconds)
 
-            bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
-            lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
-            )
+
+            sykehus_post_kombinasjoner_døgnrytme = døgnrytme_df[["sykehus", "post"]].drop_duplicates()
+            indeksliste = sykehus_post_kombinasjoner_døgnrytme.index.tolist()
+            split_points = indeksliste + [int(døgnrytme_df.index.max())+1]
+            sub_df_list = [døgnrytme_df.loc[split_points[i]:split_points[i+1]-1] for i in range(len(split_points)-1)]
+
+            result_list = [prosesser_døgnrytme_df(df) for df in sub_df_list]
+            endelig_df = pd.concat(result_list, ignore_index=True)
+
+            bemanningsplan = pd.merge(bemanningsplan, endelig_df[['Timer', 'Dag', 'sykehus', 'post', 'DøgnrytmeAktivitet']], on=['Timer', 'Dag','sykehus', 'post'], how='left')
+
+
+            # bemanningsplan['DøgnrytmeAktivitet'] = bemanningsplan.apply(
+            # lambda row: match_and_add_activity(døgnrytme_df, row), axis=1
+            # )
 
             df_full = df_quarterly.merge(bemanningsplan, on=["Uke", "Dag", "Timer", "sykehus", "post"], how="left")
-            df_full = df_full.apply(nightshift_weight, axis=1)
+            df_full["Belegg"] = np.ceil(df_full["Belegg"]*(df_full["DøgnrytmeAktivitet"]/10)).astype(int)
+            # df_full = df_full.apply(nightshift_weight, axis=1)
 
         return jsonify({'success': True})
 
@@ -366,6 +407,7 @@ def register_routes(app,db):
         query = f"SELECT * FROM bemanningsplan"
         df = pd.read_sql_query(query, conn)
         conn.close()
+        # df = pd.read_excel("test_data.xlsx", sheet_name='bemanningsplan (2)', engine='openpyxl')
         if sykehus == '' and post == '':
             df = df
         else:
@@ -397,9 +439,11 @@ def register_routes(app,db):
         ppp_query = "SELECT * FROM ppp"
         
         bemanningsplan_df = pd.read_sql_query(bemanningsplan_query, conn)
+        # bemanningsplan_df = pd.read_excel("test_data.xlsx", sheet_name='bemanningsplan (2)', engine='openpyxl')
         bemanningsplan_df = bemanningsplan_df[bemanningsplan_df["Navn"] != "Inaktiv"]
 
         ppp_df = pd.read_sql_query(ppp_query, conn)
+        # ppp_df = pd.read_excel("test_data.xlsx", sheet_name='ppp', engine='openpyxl')
         ppp_df = ppp_df[ppp_df["Navn"] != "Inaktiv"]
 
         conn.close()
@@ -433,7 +477,7 @@ def register_routes(app,db):
         oppdatert_bemanningsplan['SI'] = oppdatert_bemanningsplan.apply(SkiftIntensitet, axis=1)
 
 
-        # print(oppdatert_bemanningsplan)
+        # app.logger.info(oppdatert_bemanningsplan)
         if tidsperiode == "hele perioden":
             kombinert_tabell = oppdatert_bemanningsplan.copy(deep=True)
         else:
@@ -493,7 +537,7 @@ def register_routes(app,db):
                 tabell = kombinert_tabell[kombinert_tabell[["Uke", "Dag"]].apply(tuple, axis=1) == result]
         except:
             tabell = None
-        # print(tabell)
+        # app.logger.info(tabell)
 
         if aggregering == "hele perioden":
             visualisering = kombinert_tabell[visualiseringskolonne].tolist()
