@@ -550,7 +550,10 @@ def match_and_add_activity(df, row):
 
 def remove_microseconds(time_str):
     from datetime import datetime
-    time_obj = datetime.strptime(time_str, '%H:%M:%S.%f').time()
+    try:
+        time_obj = datetime.strptime(time_str, '%H:%M:%S.%f').time()
+    except:
+        time_obj = time_str
     return time_obj # .strftime('%H:%M:%S')
 
 

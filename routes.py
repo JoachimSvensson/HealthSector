@@ -13,13 +13,15 @@ import itertools
 from datetime import time, timedelta
 import sqlite3
 import warnings
-from secret_info import password_key_admin, password_key_users
+import psycopg2
+from secret_info import password_key_admin, password_key_users, DATABASE_URI
 
 
 warnings.filterwarnings("ignore")
 
 password_key_users = password_key_users
 password_key_admin = password_key_admin
+DATABASE_URL = DATABASE_URI
 bcrypt = Bcrypt()
 
 
@@ -32,8 +34,9 @@ def register_routes(app,db):
     app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 
-    database_path = './instance/bemanningslanternenDB.db'
-    conn = sqlite3.connect(database_path)
+    # database_path = './instance/bemanningslanternenDB.db'
+    # conn = sqlite3.connect(database_path)
+    conn = psycopg2.connect(DATABASE_URL)
 
     bemanningsplan_query = "SELECT * FROM bemanningsplan"
     ppp_query = "SELECT * FROM ppp"
@@ -117,7 +120,7 @@ def register_routes(app,db):
 
                 fin_data_hourly.to_csv('fin_data_hourly.csv', index=False)
 
-                database_path = './instance/bemanningslanternenDB.db'
+                database_path = DATABASE_URL
                 csv_path = 'fin_data_hourly.csv'
 
                 csv_tabell_last_til_db(csv_file=csv_path, table_name='sykehusdata', db_path=database_path)
@@ -151,7 +154,6 @@ def register_routes(app,db):
                     db.session.add(user)
                     db.session.commit()
                     user = User.query.filter(User.username == username).first()
-
                     if bcrypt.check_password_hash(user.password, password):
                         session["password"] = password
                         login_user(user)
@@ -181,8 +183,9 @@ def register_routes(app,db):
         sykehus = params.get('sykehus')
         post = params.get('post')
 
-        database_path = './instance/bemanningslanternenDB.db'
-        conn = sqlite3.connect(database_path)
+        # database_path = './instance/bemanningslanternenDB.db'
+        # conn = sqlite3.connect(database_path)
+        conn = psycopg2.connect(DATABASE_URL)
         sykehus_query = "SELECT * FROM sykehusdata"
         fin_data_hourly = pd.read_sql_query(sykehus_query, conn)
         # fin_data_hourly = pd.read_csv('fin_data_hourly.csv')
@@ -301,8 +304,9 @@ def register_routes(app,db):
         params = request.json
         sheet_name = params.get('sheet_name', 'bemanningsplan')
 
-        database_path = './instance/bemanningslanternenDB.db'
-        conn = sqlite3.connect(database_path)
+        # database_path = './instance/bemanningslanternenDB.db'
+        # conn = sqlite3.connect(database_path)
+        conn = psycopg2.connect(DATABASE_URL)
         query = f"SELECT * FROM {sheet_name}"
         df = pd.read_sql_query(query, conn)
         # df = pd.read_excel("test_data.xlsx", sheet_name=sheet_name, engine='openpyxl')
@@ -360,8 +364,9 @@ def register_routes(app,db):
 
         if sheet_name == "døgnrytmeplan":
             nonlocal bemanningsplan, df_quarterly, df_full
-            database_path = './instance/bemanningslanternenDB.db'
-            conn = sqlite3.connect(database_path)
+            # database_path = './instance/bemanningslanternenDB.db'
+            # conn = sqlite3.connect(database_path)
+            conn = psycopg2.connect(DATABASE_URL)
             døgnrytmeplan_query = f"SELECT * FROM døgnrytmeplan"
             døgnrytme_df = pd.read_sql_query(døgnrytmeplan_query, conn)
             conn.close()
@@ -402,8 +407,9 @@ def register_routes(app,db):
     @app.route('/api/get_dropdown_values', methods = ["POST"])
     @login_required
     def get_dropdown_values():
-        database_path = './instance/bemanningslanternenDB.db'
-        conn = sqlite3.connect(database_path)
+        # database_path = './instance/bemanningslanternenDB.db'
+        # conn = sqlite3.connect(database_path)
+        conn = psycopg2.connect(DATABASE_URL)
         query = f"SELECT * FROM bemanningsplan"
         df = pd.read_sql_query(query, conn)
         conn.close()
@@ -434,7 +440,8 @@ def register_routes(app,db):
         sykehus_plot_valg = params.get('sykehus', "hammerfest")
         post_plot_valg = params.get('post', "medisinsk")
         
-        conn = sqlite3.connect(database_path)
+        # conn = sqlite3.connect(database_path)
+        conn = psycopg2.connect(DATABASE_URL)
         bemanningsplan_query = "SELECT * FROM bemanningsplan"
         ppp_query = "SELECT * FROM ppp"
         
@@ -600,4 +607,3 @@ def register_routes(app,db):
 
         else:
             return jsonify({'table': df.to_html(index=False)})
-

@@ -1,38 +1,50 @@
 import sqlite3
 import pandas as pd
 import warnings
+from secret_info import DATABASE_URI
+import psycopg2
+from sqlalchemy import create_engine
 
 warnings.filterwarnings("ignore")
 
 
 def csv_tabell_last_til_db(csv_file, table_name, db_path):
-    conn = sqlite3.connect(db_path)
+    conn = psycopg2.connect(db_path)
+    engine = create_engine(db_path)
+
     df = pd.read_csv(csv_file)
     df.columns = df.columns.str.replace(" ", "_")
     
     cursor = conn.cursor()
     cursor.execute(f"DELETE FROM {table_name}")
 
-    df.to_sql(table_name,conn, if_exists='append', index=False)
+    df.to_sql(table_name, engine, if_exists='append', index=False, method="multi")
+
+    cursor.close()
     conn.close()
 
 
 
+
 def excel_tabell_last_til_db(excel_file, sheet_name, table_name, db_path):
-    conn = sqlite3.connect(db_path)
+    conn = psycopg2.connect(db_path)
+    engine = create_engine(db_path)
     df = pd.read_excel(excel_file, sheet_name, engine='openpyxl')
     
     cursor = conn.cursor()
     cursor.execute(f"DELETE FROM {table_name}")
 
-    df.to_sql(table_name,conn, if_exists='append', index=False)
+    df.to_sql(table_name, engine, if_exists='append', index=False, method="multi")
+
+    cursor.close()
     conn.close()
 
 
 
 if __name__ == "__main__":
     
-    database_path = './instance/bemanningslanternenDB.db'
+    # database_path = './instance/bemanningslanternenDB.db'
+    database_path = DATABASE_URI
     csv_path = 'fin_data_hourly.csv'
     excel_path = "test_data.xlsx"
 
