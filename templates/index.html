@@ -1,21 +1,25 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KPMGs Bemanningslanterne</title>
+    {% block title %}KPMGs Bemanningslanterne{% endblock title %}
+    {% block styles %}
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.css">
+    {% endblock styles %}
+    {% block script %}
     <script src="https://cdn.jsdelivr.net/npm/handsontable@latest/dist/handsontable.full.min.js"></script>
+    {% endblock script %}
 </head>
 
+
+{% block content %}
 <body>
     <div class="container">
         <h1>Bemanningsplanleggingsverktøy</h1>
-        <div class="button-container">
-            <a href="{{ url_for('index') }}" class="small-button-link">Velg annet sykehus eller post</a>
-        </div>
         <p>Velg faktoren du vil justere:</p>
         <select id="sheetSelector">
             <option value="" disabled selected>Velg faktor</option>
@@ -45,6 +49,19 @@
                     <label for="slutt-dato-1">Sluttdato:</label>
                     <input type="date" id="slutt-dato-1">
                 </div>
+
+                <label for="dag-1">Dag:</label>
+                <select id="dag-1">
+                    <option value="" disabled selected>Velg dag</option>
+                    <option value="All">All</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
 
                 <label for="aggregering-1">Aggregering:</label>
                 <select id="aggregering-1">
@@ -83,7 +100,16 @@
                 <select id="plan-1">
                     <option value="">Laster inn planer...</option>
                 </select>
+                
+                <label for="sykehus-1">Sykehus:</label>
+                <select id="sykehus-1">
+                    <option value="">Laster inn sykehus...</option>
+                </select>
 
+                <label for="post-1">Post:</label>
+                <select id="post-1">
+                    <option value="">Laster inn post...</option>
+                </select>
 
 
                 <button class="plot-btn" id="plot-btn-1">Vis Plot</button>
@@ -109,6 +135,21 @@
                     <label for="slutt-dato-2">Sluttdato:</label>
                     <input type="date" id="slutt-dato-2">
                 </div>
+
+
+                <label for="dag-2">Dag:</label>
+                <select id="dag-2">
+                    <option value="" disabled selected>Velg dag</option>
+                    <option value="All">All</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
+
 
                 <label for="aggregering-2">Aggregering:</label>
                 <select id="aggregering-2">
@@ -151,6 +192,17 @@
 
 
 
+                <label for="sykehus-2">Sykehus:</label>
+                <select id="sykehus-2">
+                    <option value="">Laster inn sykehus...</option>
+                </select>
+
+                <label for="post-2">Post:</label>
+                <select id="post-2">
+                    <option value="">Laster inn post...</option>
+                </select>
+
+
                 <button class="plot-btn" id="plot-btn-2">Vis Plot</button>
             </div>
             <div class="plot-container">
@@ -169,3 +221,4 @@
     <script src="/static/script.js"></script>
 </body>
 </html>
+{% endblock content %}

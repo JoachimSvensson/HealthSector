@@ -1,12 +1,18 @@
+{% extends "base.html" %}
 <!DOCTYPE html>
 <html lang="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FAQ</title>
+    {% block title %}FAQ{% endblock title %}
+    {% block styles %}
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="/static/style_faq.css">
+    {% endblock styles %}
+    
 </head>
+
+{% block content %}
 <body>
     <div class="container">
         <header>
@@ -37,3 +43,4 @@
     </div>
 </body>
 </html>
+{% endblock content %}

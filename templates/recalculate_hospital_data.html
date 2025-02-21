@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+
+{% block title %}Opplastning sykehusdata{% endblock title %}
+{% block styles %}
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="/static/style_recalculate.css">
+{% endblock styles %}
+
+
+{% block content %}
+<div class="container">
+    <h1>Last opp en CSV eller Excel-fil</h1>
+    <form id="uploadForm" action="#" method="POST" enctype="multipart/form-data">
+        <label for="fileInput" class="upload-box">
+            <span>Dra og slipp filen din her eller klikk for å velge</span>
+            <input type="file" id="fileInput" name="file" accept=".csv, .xlsx">
+        </label>
+        <button type="submit">Last opp</button>
+    </form>
+</div>
+
+<script src="/static/recalc_script.js"></script>
+{% endblock content %}

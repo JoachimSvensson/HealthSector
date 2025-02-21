@@ -6,7 +6,7 @@ body {
     justify-content: center;
     height: 100vh;
     margin: 0;
-    background-color: #f4f4f4;
+    background-color: #f4f7f6;
 }
 
 h1 {
@@ -60,6 +60,19 @@ button, .button-link {
 #lagre:hover {
     background-color: #0056b3;
 }
+
+
+
+#admin {
+    background-color: #007bff;
+    color: white;
+}
+
+#admin:hover {
+    background-color: #0056b3;
+}
+
+
 
 .button-link {
     background-color: #28a745;

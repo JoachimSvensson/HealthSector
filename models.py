@@ -1,4 +1,20 @@
 from app import db
+from flask_login import UserMixin
+
+class User(db.Model, UserMixin):
+    __tablename__='users'
+
+    uid = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, nullable=False)
+    password = db.Column(db.String, nullable=False)
+    stay = db.Column(db.String)
+    description = db.Column(db.String)
+
+    def __repr__(self):
+        return f'<User: {self.username}, Length of stay: {self.stay} days>'
+    
+    def get_id(self):
+        return self.uid
 
 class Bemanningsplan(db.Model):
     __tablename__ = 'bemanningsplan'
@@ -15,6 +31,8 @@ class Bemanningsplan(db.Model):
     Sunday = db.Column(db.Integer, nullable=False)
     Week = db.Column(db.String, nullable=False)
     Navn = db.Column(db.String, nullable=False)
+    sykehus = db.Column(db.String, nullable=True)
+    post = db.Column(db.String, nullable=True)
 
     def __repr__(self):
         return f"bemanningsplan med start kl {self.Start} og slutt kl {self.End} er registrert"
@@ -35,6 +53,8 @@ class PPP(db.Model):
     ppp_sun = db.Column(db.Integer, nullable=False)
     Week = db.Column(db.String, nullable=False)
     Navn = db.Column(db.String, nullable=False)
+    sykehus = db.Column(db.String, nullable=True)
+    post = db.Column(db.String, nullable=True)
 
     def __repr__(self):
         return f"ppp oppsett for bemanningsplan med start kl {self.Start} og slutt kl {self.End} er registrert"
@@ -43,9 +63,17 @@ class PPP(db.Model):
 class Døgnrytmetabell(db.Model):
     __tablename__ = 'døgnrytmeplan'
     did = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    Start = db.Column(db.String, nullable=False)
-    End = db.Column(db.String, nullable=False)
-    Aktivitet = db.Column(db.Integer, nullable=False)
+    Start = db.Column(db.String, nullable=True)
+    End = db.Column(db.String, nullable=True)
+    Monday = db.Column(db.Integer, nullable=True)
+    Tuesday = db.Column(db.Integer, nullable=True)
+    Wednesday = db.Column(db.Integer, nullable=True)
+    Thursday = db.Column(db.Integer, nullable=True)
+    Friday = db.Column(db.Integer, nullable=True)
+    Saturday = db.Column(db.Integer, nullable=True)
+    Sunday = db.Column(db.Integer, nullable=True)
+    sykehus = db.Column(db.String, nullable=True)
+    post = db.Column(db.String, nullable=True)
 
     def __repr__(self):
         return f"døgnrytmeaktivitet er oppdatert og registrert for de ulike tidspunktene av døgnet"
